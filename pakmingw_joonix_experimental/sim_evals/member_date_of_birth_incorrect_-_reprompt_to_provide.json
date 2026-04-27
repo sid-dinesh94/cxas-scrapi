@@ -1,0 +1,27 @@
+{
+  "steps": [
+    {
+      "static_utterance": "1234567890"
+    },
+    {
+      "goal": "Provide the member ID as requested by the agent.",
+      "response_guide": "Provide 'W17936' as the member ID when prompted by the agent.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide an invalid date of birth, then provide a valid date of birth when prompted again.",
+      "response_guide": "First say '25th of 1985' to trigger a reprompt, then say 'October 25th 1985' or '1985-10-25' when asked again.",
+      "max_turns": 5
+    }
+  ],
+  "expectations": [
+    "Welcome message played by the agent.",
+    "Agent should ask for the 10-digit National Provider ID.",
+    "Agent should call the tool `set_nga_context_variable` with `variable_name='current_state'` and `variable_value='VALIDATING_PROVIDER_ID'`.",
+    "Agent should call the tool `resilient_provider_auth` with `providerId='1234567890'`.",
+    "Agent should ask for the Member ID after successful NPI validation.",
+    "Agent should ask for the member's date of birth after receiving the member ID.",
+    "Agent should reprompt for a valid date of birth when an invalid one is provided.",
+    "Agent should eventually attempt to call `unified_member_verification` with the member ID and a valid date of birth."
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "steps": [
+    {
+      "static_utterance": "Hello"
+    },
+    {
+      "goal": "Provide the agent with a valid 10-digit National Provider ID.",
+      "success_criteria": "The agent confirms NPI validation and asks for the Member ID.",
+      "response_guide": "Provide a 10-digit NPI, for example '1234567890'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the agent with the member's ID.",
+      "success_criteria": "The agent asks for the member's date of birth.",
+      "response_guide": "Provide the Member ID, e.g., '259W17936'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the agent with the member's date of birth.",
+      "success_criteria": "The agent confirms member verification and asks if the service is for inpatient or outpatient.",
+      "response_guide": "State the member's date of birth, e.g., 'November 16th 1985'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify the service type is inpatient.",
+      "success_criteria": "The agent acknowledges and asks for the specific inpatient service.",
+      "response_guide": "Indicate that the service is inpatient.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify the inpatient service is for maternity.",
+      "success_criteria": "The agent asks for the type of maternity delivery (routine or complication).",
+      "response_guide": "State 'maternity'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify the maternity delivery is routine.",
+      "success_criteria": "The agent confirms no pre-certification is required and offers further options.",
+      "response_guide": "State 'routine'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Request to check for a different provider.",
+      "success_criteria": "The agent acknowledges the request and asks for a new National Provider ID.",
+      "response_guide": "Indicate that you want to check for a different provider.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "Welcome message played.",
+    "Agent should call the tool `set_nga_context_variable` with `variable_name='current_state'` and `variable_value='VALIDATING_PROVIDER_ID'`.",
+    "Agent asks for the ten-digit National Provider ID.",
+    "Agent should call the tool `resilient_provider_auth`.",
+    "Agent confirms NPI validation and asks for Member ID.",
+    "Agent asks for the member's date of birth.",
+    "Agent should call the tool `unified_member_verification`.",
+    "Agent should call the tool `set_nga_context_variable` with `variable_name='current_state'` and `variable_value='DETERMINE_COVERAGE'`.",
+    "Agent confirms member verification and asks if service is inpatient or outpatient.",
+    "Agent should call the tool `set_nga_context_variable` with `variable_name='current_state'` and `variable_value='DETERMINE_COVERAGE_INPATIENT'`.",
+    "Agent asks what type of inpatient service is being requested (e.g., Maternity, Surgery).",
+    "Agent asks if the maternity is for a Routine delivery or a Complication.",
+    "Agent confirms no Pre-Certification is required.",
+    "Agent offers to check another service, another member, or something else.",
+    "Agent should call the tool `set_nga_context_variable` with `variable_name='current_state'` and `variable_value='VALIDATING_PROVIDER_ID'`.",
+    "Agent asks for the ten-digit National Provider ID for the new provider."
+  ]
+}

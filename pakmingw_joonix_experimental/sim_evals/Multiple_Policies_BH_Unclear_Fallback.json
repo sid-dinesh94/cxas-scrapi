@@ -1,0 +1,39 @@
+{
+  "steps": [
+    { "static_utterance": "Hi" },
+    {
+      "goal": "Provide National Provider ID",
+      "success_criteria": "Agent successfully validates the NPI and asks for the Member ID.",
+      "response_guide": "Provide the 10-digit NPI `1234567890`.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Member ID",
+      "success_criteria": "Agent asks for Date of Birth.",
+      "response_guide": "Provide Member ID `276Y20486`.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Date of Birth",
+      "success_criteria": "Agent states it noticed multiple policies and asks about Behavioral Health.",
+      "response_guide": "Provide DOB `1990-10-20`.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Say something unclear to BH question (e.g., 'I don't know')",
+      "success_criteria": "Agent asks if the service is for a transplant (Proceed to next step).",
+      "response_guide": "Say 'I don't know'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Say something unclear to transplant question (e.g., 'Maybe')",
+      "success_criteria": "Agent asks if user wants to transfer or has other questions (Proceed to next step).",
+      "response_guide": "Say 'Maybe'.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "INSTRUCTION FOLLOWING: Agent must proceed to Transplant Check after unclear response to BH question.",
+    "INSTRUCTION FOLLOWING: Agent must proceed to Transfer Check after unclear response to Transplant question."
+  ]
+}

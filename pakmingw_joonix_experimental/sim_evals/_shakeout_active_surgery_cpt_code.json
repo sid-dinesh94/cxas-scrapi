@@ -1,0 +1,74 @@
+{
+  "steps": [
+    {
+      "static_utterance": "1234567890"
+    },
+    {
+      "goal": "Provide Member ID",
+      "success_criteria": "The agent asks for the member's date of birth after receiving the Member ID.",
+      "response_guide": "Provide the member ID '317Y20486'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Date of Birth and determine service setting",
+      "success_criteria": "The agent verifies the member's identity and asks if the service is for inpatient or outpatient.",
+      "response_guide": "Provide the date of birth 'December 7, 1984'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Indicate Inpatient Service",
+      "success_criteria": "The agent asks for the specific type of inpatient service (Maternity, Surgery, etc.).",
+      "response_guide": "State that the service is 'inpatient'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify Inpatient Service as Surgery",
+      "success_criteria": "The agent asks for the procedure code for the selected surgery service.",
+      "response_guide": "State that the service is 'surgery'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Procedure Code",
+      "success_criteria": "The agent confirms pre-certification is required and offers further options.",
+      "response_guide": "Provide the 5-digit procedure code '12345'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Indicate no further services needed",
+      "success_criteria": "The agent asks if a reference number is desired for the call.",
+      "response_guide": "State that no further services are needed, for example, 'no that is all'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Request Reference Number",
+      "success_criteria": "The agent provides a reference number and asks if the issue was resolved.",
+      "response_guide": "Say 'yes' to requesting a reference number.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Confirm Resolution and End Call",
+      "success_criteria": "The agent thanks the user and ends the call.",
+      "response_guide": "Say 'yes' to confirm resolution.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "Agent should greet the user and ask for the National Provider ID.",
+    "Agent should call the tool `resilient_provider_auth` with the provided NPI.",
+    "Agent should confirm NPI validation and ask for the Member ID.",
+    "Agent should ask for the member's date of birth.",
+    "Agent should call the tool `unified_member_verification` to verify member identity.",
+    "Agent should confirm member identity verification and ask if the service is for inpatient or outpatient.",
+    "Agent should set the `service_setting` context variable to 'inpatient'.",
+    "Agent should ask for the specific inpatient service type (Maternity, Surgery, etc.).",
+    "Agent should ask for the procedure code for the selected surgery service.",
+    "Agent should state that pre-certification is required for the service.",
+    "Agent should offer options for next steps (check another service/member, submit authorization, etc.).",
+    "Agent should ask if a reference number is desired for the call.",
+    "Agent should provide a reference number (e.g., 'I-1807627').",
+    "Agent should ask if the caller's issue was resolved.",
+    "Agent should thank the user and end the call.",
+    "Agent should call the tool `construct_end_session_args`.",
+    "Agent should call the tool `end_session`."
+  ]
+}

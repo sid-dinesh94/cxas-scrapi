@@ -1,0 +1,45 @@
+{
+  "steps": [
+    { "static_utterance": "Hi" },
+    {
+      "goal": "Provide National Provider ID",
+      "success_criteria": "Agent successfully validates the NPI and asks for the Member ID.",
+      "response_guide": "Provide the 10-digit NPI `1234567890`.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Member ID",
+      "success_criteria": "Agent asks for Date of Birth.",
+      "response_guide": "Provide Member ID `276Y20486`.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Date of Birth",
+      "success_criteria": "Agent states it noticed multiple policies and asks about Behavioral Health.",
+      "response_guide": "Provide DOB `1990-10-20`.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Say No to Behavioral Health question",
+      "success_criteria": "Agent asks if the service is for a transplant.",
+      "response_guide": "Say 'No'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Say No to Transplant question",
+      "success_criteria": "Agent asks to transfer or other questions.",
+      "response_guide": "Say 'No'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Say No to transfer/other questions",
+      "success_criteria": "Agent routes to wrap_menu_not_required_main.",
+      "response_guide": "Say 'No'.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "Agent should ask about both BH and Transplant.",
+    "Agent should ask if user has other questions or wants to transfer."
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "steps": [
+    {
+      "static_utterance": "SESSION_START"
+    },
+    {
+      "goal": "Provide National Provider ID",
+      "success_criteria": "Agent validates NPI and asks for Member ID.",
+      "response_guide": "Provide a valid 10-digit National Provider ID.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Member ID",
+      "success_criteria": "Agent acknowledges Member ID and asks for Date of Birth.",
+      "response_guide": "Provide the member's ID.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Date of Birth",
+      "success_criteria": "Agent verifies member and asks for Date of Service due to inactive policy.",
+      "response_guide": "Provide the member's date of birth.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Date of Service",
+      "success_criteria": "Agent verifies coverage and asks for service type (inpatient/outpatient).",
+      "response_guide": "Provide a valid date of service.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify service type as outpatient",
+      "success_criteria": "Agent asks for the procedure code.",
+      "response_guide": "State that the service is outpatient.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide an invalid procedure code and expect re-prompt",
+      "success_criteria": "Agent identifies invalid code and re-prompts for a valid one.",
+      "response_guide": "Provide an invalid 5-character procedure code (e.g., ABC12).",
+      "max_turns": 2
+    },
+    {
+      "goal": "Provide a valid procedure code and handle tool error with escalation",
+      "success_criteria": "Agent processes the code, encounters an error with the tool, and escalates to a human agent.",
+      "response_guide": "Provide a valid 5-digit procedure code.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "Agent should greet the user and ask for the National Provider ID.",
+    "Agent should call the tool `resilient_provider_auth`.",
+    "Agent should call the tool `unified_member_verification` to verify member with DOB.",
+    "Agent should call the tool `unified_member_verification` to verify coverage with DOS.",
+    "Agent should call the tool `resilient_mars`.",
+    "Agent should call the tool `construct_end_session_args`.",
+    "Agent should call the tool `end_session`."
+  ]
+}

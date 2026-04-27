@@ -1,0 +1,50 @@
+{
+  "steps": [
+    {
+      "static_utterance": "hi"
+    },
+    {
+      "goal": "Provide the National Provider ID (NPI) and get it validated.",
+      "success_criteria": "The agent successfully validates the NPI and asks for the Member ID.",
+      "response_guide": "Provide the NPI '1234567890'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the Member ID.",
+      "success_criteria": "The agent acknowledges the Member ID and asks for the Date of Birth.",
+      "response_guide": "Provide the Member ID '259w17936'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide an incomplete Date of Birth (month and year).",
+      "success_criteria": "The agent re-prompts for a complete Date of Birth.",
+      "response_guide": "Provide the partial date of birth 'november 1985'.",
+      "max_turns": 2
+    },
+    {
+      "goal": "Provide another incomplete Date of Birth (day).",
+      "success_criteria": "The agent re-prompts for a complete Date of Birth again.",
+      "response_guide": "Provide another partial date 'the 16th'.",
+      "max_turns": 2
+    },
+    {
+      "goal": "Fail to provide a complete Date of Birth after multiple attempts.",
+      "success_criteria": "The agent ends the call gracefully due to failed verification.",
+      "response_guide": "Provide another partial date 'the 20th'.",
+      "max_turns": 2
+    }
+  ],
+  "expectations": [
+    "Agent should play the welcome message and ask for the National Provider ID (NPI).",
+    "Agent should call the tool `set_nga_context_variable` to mark the welcome message as given.",
+    "Agent should call the tool `resilient_provider_auth` with `providerId` '1234567890'.",
+    "Agent should call the tool `set_nga_context_variable` to set the `current_state` to `AUTHENTICATING_MEMBER`.",
+    "Agent should confirm NPI validation and ask for the Member ID.",
+    "Agent should acknowledge the Member ID and ask for the Date of Birth.",
+    "Agent should re-prompt for a complete Date of Birth.",
+    "Agent should re-prompt for a complete Date of Birth.",
+    "Agent should inform the user the call is ending due to failure to provide Date of Birth.",
+    "Agent should call the tool `construct_end_session_args` with `outcome='success'` and `escalation_reason='verification_failed'`.",
+    "Agent should call the tool `end_session`."
+  ]
+}

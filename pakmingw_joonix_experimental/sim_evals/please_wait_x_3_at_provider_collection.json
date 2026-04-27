@@ -1,0 +1,28 @@
+{
+  "steps": [
+    {
+      "static_utterance": "Please wait for a minute"
+    },
+    {
+      "goal": "User asks the agent to wait because they are busy.",
+      "success_criteria": "The agent acknowledges the user's request to wait.",
+      "response_guide": "Inform the agent you are still busy and need more time.",
+      "max_turns": 3
+    },
+    {
+      "goal": "User asks the agent to wait for the third time.",
+      "success_criteria": "The agent identifies the repeated delay and offers escalation or ends the conversation.",
+      "response_guide": "Tell the agent you are still not ready to provide the information.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "Agent should call the tool `set_nga_context_variable`.",
+    "Agent should greet the user and ask for the National Provider ID.",
+    "Agent should respond by agreeing to wait.",
+    "Agent should acknowledge the user's request to wait again.",
+    "Agent should offer to connect to a human associate due to repeated delays.",
+    "Agent should call the tool `construct_end_session_args`.",
+    "Agent should call the tool `end_session`."
+  ]
+}

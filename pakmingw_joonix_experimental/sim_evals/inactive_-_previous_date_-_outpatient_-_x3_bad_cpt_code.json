@@ -1,0 +1,79 @@
+{
+  "steps": [
+    {
+      "static_utterance": "hi"
+    },
+    {
+      "goal": "Provide the 10-digit National Provider ID.",
+      "success_criteria": "The agent successfully validates the NPI and asks for the Member ID.",
+      "response_guide": "Provide a valid 10-digit NPI, such as '1234567890'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the Member ID.",
+      "success_criteria": "The agent asks for the member's date of birth.",
+      "response_guide": "Provide a valid Member ID, such as '575w25854'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the member's date of birth.",
+      "success_criteria": "The agent verifies the member, identifies an inactive policy, and asks for the date of service.",
+      "response_guide": "Provide the member's date of birth, such as 'March 23, 1979'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the date of service.",
+      "success_criteria": "The agent successfully verifies the member and asks if the service is inpatient or outpatient.",
+      "response_guide": "Provide the date of service, such as 'August 1, 2025'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify the service type as outpatient.",
+      "success_criteria": "The agent acknowledges the outpatient service type and asks for the 5-digit procedure code.",
+      "response_guide": "State that the service is 'outpatient'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide an invalid 3-digit procedure code.",
+      "success_criteria": "The agent identifies the invalid code and asks for a retry, specifying a 5-digit code.",
+      "response_guide": "Provide a 3-digit number, e.g., '234'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide another invalid 3-digit procedure code.",
+      "success_criteria": "The agent identifies the invalid code again and asks for a retry, specifying a 5-digit code.",
+      "response_guide": "Provide a 3-digit number, e.g., '123'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide a third invalid 4-digit procedure code.",
+      "success_criteria": "The agent escalates the call to a live agent due to repeated invalid input for the procedure code.",
+      "response_guide": "Provide a 4-digit number, e.g., '4534'.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "Welcome message played.",
+    "Agent asks for the 10-digit National Provider ID.",
+    "Agent should call the tool `resilient_provider_auth` with the provided NPI.",
+    "Agent should call the tool `retry_counter` to reset the counter for NPI collection.",
+    "Agent acknowledges NPI validation and asks for the Member ID.",
+    "Agent should call the tool `retry_counter` to reset the counter for DOB collection.",
+    "Agent asks for the member's date of birth.",
+    "Agent should call the tool `unified_member_verification` with the member ID and date of birth.",
+    "Agent identifies an inactive policy and asks for the date of service.",
+    "Agent should call the tool `retry_counter` to reset the counter for DOS collection.",
+    "Agent should call the tool `unified_member_verification` with member ID, DOB, and DOS.",
+    "Agent confirms member identity and asks about inpatient or outpatient service.",
+    "Agent should call the tool `set_nga_context_variable` to set the state to `DETERMINE_COVERAGE_OUTPATIENT`.",
+    "Agent asks for the 5-digit procedure code.",
+    "Agent should call the tool `retry_counter` to increment the retry count for CPT collection.",
+    "Agent should inform the user that the procedure code is invalid and ask for a 5-digit code.",
+    "Agent should call the tool `retry_counter` to increment the retry count for CPT collection.",
+    "Agent should inform the user that the procedure code is invalid and ask for a 5-digit code again.",
+    "Agent should call the tool `retry_counter` to increment the retry count for CPT collection.",
+    "Agent should state inability to collect information and mention connecting to an associate.",
+    "Agent should call the tool `construct_end_session_args` to initiate escalation.",
+    "The call should end with an escalation."
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "steps": [
+    {
+      "static_utterance": "Hello, I need assistance.",
+      "inject_variables": {}
+    },
+    {
+      "goal": "Provide a valid 10-digit National Provider ID.",
+      "success_criteria": "The agent validates the NPI and asks for the Member ID.",
+      "response_guide": "When prompted for the NPI, provide '1234567890'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the Member ID.",
+      "success_criteria": "The agent acknowledges the Member ID and asks for the Date of Birth.",
+      "response_guide": "When asked for the Member ID, provide '259W17936'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the member's date of birth.",
+      "success_criteria": "The agent verifies the member's identity and asks if the service is for inpatient or outpatient.",
+      "response_guide": "When asked for the date of birth, provide 'November 16, 1985'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify the service type as inpatient.",
+      "success_criteria": "The agent acknowledges inpatient service and asks for the specific type of inpatient service.",
+      "response_guide": "When asked about inpatient or outpatient service, say 'inpatient'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify the inpatient service as surgery.",
+      "success_criteria": "The agent asks for the procedure code.",
+      "response_guide": "When asked for the type of inpatient service, say 'surgery'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide invalid procedure codes three times, leading to escalation.",
+      "success_criteria": "The agent rejects three invalid procedure codes and then escalates the call to a live agent.",
+      "response_guide": "When prompted for a procedure code the first time, provide 'a b 123'. When prompted to retry the second time, provide 'd f 323'. When prompted to retry the third time, provide 'h g 321'.",
+      "max_turns": 5
+    }
+  ],
+  "expectations": [
+    "Welcome message played.",
+    "Agent asks for the 10-digit National Provider ID.",
+    "Agent should call the tool `set_nga_context_variable`.",
+    "Agent should call the tool `resilient_provider_auth`.",
+    "Agent confirms NPI validation and asks for Member ID.",
+    "Agent confirms Member ID and asks for Date of Birth.",
+    "Agent should call the tool `unified_member_verification`.",
+    "Agent confirms member verification and asks for service type (inpatient/outpatient).",
+    "Agent should call the tool `set_nga_context_variable`.",
+    "Agent asks for the specific inpatient service (Maternity, Surgery, etc.).",
+    "Agent asks for the procedure code.",
+    "Agent rejects invalid procedure codes.",
+    "Agent attempts to collect procedure code three times.",
+    "Agent states unable to validate and escalates to an associate.",
+    "Agent should call the tool `construct_end_session_args`.",
+    "Agent should call the tool `end_session`."
+  ]
+}

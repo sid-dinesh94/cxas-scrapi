@@ -1,0 +1,48 @@
+{
+  "steps": [
+    {
+      "static_utterance": "1234567890"
+    },
+    {
+      "goal": "Provide Member ID and Date of Birth",
+      "success_criteria": "The agent successfully collects member ID and DOB and verifies the member.",
+      "response_guide": "The member ID is '259W17936' and the date of birth is 'November 16th, 1985'.",
+      "max_turns": 5
+    },
+    {
+      "goal": "Specify service type as inpatient",
+      "success_criteria": "The agent correctly identifies the service as inpatient and asks for specific service details.",
+      "response_guide": "The service is inpatient.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify inpatient service as NICU",
+      "success_criteria": "The agent correctly identifies NICU as the inpatient service and states pre-certification requirements, offering next steps.",
+      "response_guide": "The service is NICU.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Request to check for a different provider",
+      "success_criteria": "The agent resets the conversation context and prompts for a new National Provider ID.",
+      "response_guide": "I need to check for a different provider.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "Welcome message played and agent asks for National Provider ID.",
+    "Agent should call the tool `set_nga_context_variable` with `variable_name` 'current_state' and `variable_value` 'VALIDATING_PROVIDER_ID'.",
+    "Agent should call the tool `resilient_provider_auth`.",
+    "Agent should confirm NPI validation and ask for Member ID.",
+    "Agent should set `current_state` to `AUTHENTICATING_MEMBER`.",
+    "Agent should confirm receipt of Member ID and ask for Date of Birth.",
+    "Agent should call the tool `unified_member_verification`.",
+    "Agent should confirm member verification and ask about service type (inpatient/outpatient).",
+    "Agent should set `current_state` to `DETERMINE_COVERAGE`.",
+    "Agent should set `current_state` to `DETERMINE_COVERAGE_INPATIENT`.",
+    "Agent should ask for the specific inpatient service type (e.g., Maternity, Surgery, etc.).",
+    "Agent should state that pre-certification is required for the 'NICU' service.",
+    "Agent should offer options for next steps (check another service, check another member, submit authorization, or something else).",
+    "Agent should reset the conversation context and prompt for a new National Provider ID.",
+    "Agent should set `current_state` to `VALIDATING_PROVIDER_ID` again."
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "steps": [
+    {
+      "static_utterance": "Hello"
+    },
+    {
+      "goal": "Provide National Provider ID",
+      "success_criteria": "The agent validates the NPI and asks for the Member ID.",
+      "response_guide": "Provide a 10-digit National Provider ID.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Member ID",
+      "success_criteria": "The agent acknowledges the Member ID and asks for the Date of Birth.",
+      "response_guide": "Provide the Member ID including any letters.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Date of Birth and verify member",
+      "success_criteria": "The agent verifies the member and asks if the service is inpatient or outpatient.",
+      "response_guide": "Provide the member's date of birth.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify service type as outpatient",
+      "success_criteria": "The agent acknowledges 'outpatient' and asks for the procedure code.",
+      "response_guide": "Indicate that the service is outpatient.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide procedure code",
+      "success_criteria": "The agent checks precertification for the CPT code and asks about other codes.",
+      "response_guide": "Provide a 5-digit CPT or procedure code.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Decline to check another procedure code",
+      "success_criteria": "The agent presents options for further actions after declining another procedure code.",
+      "response_guide": "Indicate that you do not have another procedure code.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Request to submit an authorization and transfer to an agent",
+      "success_criteria": "The agent provides information about submitting authorization and transfers the call to a live agent.",
+      "response_guide": "Ask to submit an authorization.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "Welcome message played.",
+    "Agent should call the tool `set_nga_context_variable` with variable_name 'current_state' and variable_value 'VALIDATING_PROVIDER_ID'.",
+    "Agent should ask for the 10-digit National Provider ID.",
+    "Agent should call the tool `resilient_provider_auth` with providerId '1234567890'.",
+    "Agent should ask for the Member ID.",
+    "Agent should ask for the member's date of birth.",
+    "Agent should call the tool `unified_member_verification` with memberId '259W17936' and birthDate '1985-11-16'.",
+    "Agent should ask if the service is for an inpatient or outpatient.",
+    "Agent should call the tool `set_nga_context_variable` with variable_name 'current_state' and variable_value 'DETERMINE_COVERAGE_OUTPATIENT'.",
+    "Agent should ask for the 5-digit CPT or procedure code.",
+    "Agent should call the tool `resilient_mars` with procedure_code '93461'.",
+    "Agent should state that pre-certification is required for the service.",
+    "Agent should offer options like checking another service or member, or submitting authorization.",
+    "Agent should mention using Availity to submit authorization.",
+    "Agent should call the tool `construct_end_session_args` with outcome 'escalate' and escalation_reason 'member_initiated_escalation'.",
+    "Agent should call the tool `end_session`."
+  ]
+}

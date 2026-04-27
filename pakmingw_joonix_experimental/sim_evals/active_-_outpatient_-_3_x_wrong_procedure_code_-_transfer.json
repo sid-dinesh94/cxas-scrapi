@@ -1,0 +1,41 @@
+{
+  "steps": [
+    {
+      "static_utterance": "1234567890"
+    },
+    {
+      "goal": "Provide the member ID for authentication.",
+      "success_criteria": "The agent acknowledges the member ID and asks for the date of birth.",
+      "response_guide": "Provide the member ID '259W17936'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the member's date of birth.",
+      "success_criteria": "The agent confirms member verification and asks if the service is inpatient or outpatient.",
+      "response_guide": "Provide the date of birth 'November 16, 1985'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify the service type as outpatient.",
+      "success_criteria": "The agent acknowledges the outpatient service type and asks for the 5-digit procedure code.",
+      "response_guide": "Indicate that the service is 'outpatient'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "The user provides three invalid 5-digit procedure codes, leading to agent escalation.",
+      "success_criteria": "The agent attempts to re-prompt for the procedure code twice, then escalates the call due to repeated invalid input.",
+      "response_guide": "Respond with 'AB123' first, then 'ABC12', and finally 'FE126' for the procedure code.",
+      "max_turns": 5
+    }
+  ],
+  "expectations": [
+    "Welcome message played.",
+    "Agent should call the tool `set_nga_context_variable` with variable_name 'current_state' and variable_value 'VALIDATING_PROVIDER_ID'.",
+    "Agent should call the tool `resilient_provider_auth` with the provided NPI.",
+    "Agent should update the conversation state to `AUTHENTICATING_MEMBER`.",
+    "Agent should call the tool `unified_member_verification` with the member ID and date of birth.",
+    "Agent should update the conversation state to `DETERMINE_COVERAGE_OUTPATIENT`.",
+    "Agent should attempt to gather valid 5-digit procedure code.",
+    "Agent should call the tool `construct_end_session_args` with outcome 'escalate_to_human' due to repeated invalid input."
+  ]
+}

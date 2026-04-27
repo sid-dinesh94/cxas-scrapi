@@ -1,0 +1,38 @@
+{
+  "steps": [
+    {
+      "static_utterance": "1234567890"
+    },
+    {
+      "goal": "Authenticate member and determine service setting for routine maternity delivery.",
+      "success_criteria": "The agent successfully authenticates the member, confirms maternity service is routine, and states no pre-certification is required.",
+      "response_guide": "First, provide the member ID '259W17936'. Then, provide the date of birth 'November 16, 1985'. When asked about the service type, state 'inpatient', then 'maternity', and finally 'routine delivery'.",
+      "max_turns": 12
+    },
+    {
+      "goal": "Conclude the call, request a reference number, and confirm resolution.",
+      "success_criteria": "The agent provides a reference number and ends the call gracefully after confirming resolution.",
+      "response_guide": "State 'nope that's all' to indicate no further questions. When asked about a reference number, say 'yes'. Confirm 'yes' that the issue was resolved.",
+      "max_turns": 8
+    }
+  ],
+  "expectations": [
+    "Agent should introduce itself and ask for the National Provider ID.",
+    "Agent should call the tool `resilient_provider_auth` with the provided NPI.",
+    "Agent should confirm NPI validation and ask for the Member ID.",
+    "Agent should ask for the member's date of birth.",
+    "Agent should call the tool `unified_member_verification` with the provided Member ID and Date of Birth.",
+    "Agent should confirm member identity verification.",
+    "Agent should ask whether the service is inpatient or outpatient.",
+    "Agent should ask for the specific service requested (Maternity, Surgery, etc.).",
+    "Agent should ask for the type of maternity delivery (Routine or Complication).",
+    "Agent should state that no pre-certification is required for routine maternity delivery.",
+    "Agent should ask about further actions (check another service/member, or something else).",
+    "Agent should ask if a reference number is desired.",
+    "Agent should provide the reference number (e.g., 'I-1807627').",
+    "Agent should ask if the issue was resolved.",
+    "Agent should thank the user and gracefully end the call.",
+    "Agent should call the tool `construct_end_session_args`.",
+    "Agent should call the tool `end_session`."
+  ]
+}

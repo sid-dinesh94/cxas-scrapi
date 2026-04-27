@@ -1,0 +1,48 @@
+{
+  "steps": [
+    {
+      "static_utterance": "Hi"
+    },
+    {
+      "goal": "Validate the provider's 10-digit National Provider ID (NPI).",
+      "success_criteria": "The agent successfully validates the NPI and asks for the Member ID.",
+      "response_guide": "Provide a 10-digit NPI, such as '1234567890'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Authenticate the member using their ID and Date of Birth, and confirm policy status.",
+      "success_criteria": "The agent successfully verifies the member, collects Date of Service if needed, and determines coverage type (inpatient/outpatient).",
+      "response_guide": "First, provide the member ID (e.g., '575W25854'). Then, provide the member's date of birth (e.g., 'March 23, 1979'). If prompted for it, provide a date of service (e.g., 'August 1, 2025').",
+      "max_turns": 5
+    },
+    {
+      "goal": "Determine the specific inpatient service and collect the procedure code.",
+      "success_criteria": "The agent identifies the service as inpatient surgery, requests a procedure code, and confirms precertification requirements.",
+      "response_guide": "Indicate that the service is 'inpatient', then specify it is for 'surgery', and finally provide a 5-digit procedure code (e.g., '12345').",
+      "max_turns": 4
+    },
+    {
+      "goal": "Handle the request to submit an authorization and escalate the call to a human agent.",
+      "success_criteria": "The agent provides authorization submission information, a reference number, and initiates a transfer to a live associate.",
+      "response_guide": "Confirm that there are 'no' other procedure codes, then explicitly state 'submit an authorization'.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "Agent should greet the user and ask for a 10-digit National Provider ID.",
+    "Agent should call the tool `resilient_provider_auth` with the provided NPI.",
+    "Agent should confirm NPI validation and ask for the Member ID.",
+    "Agent should ask for the member's Date of Birth.",
+    "Agent should call the tool `unified_member_verification` with Member ID and Date of Birth.",
+    "Agent should identify an inactive policy and ask for a Date of Service.",
+    "Agent should re-verify the member and policy using `unified_member_verification` with the Date of Service.",
+    "Agent should confirm member verification and ask if the service is for inpatient or outpatient.",
+    "Agent should ask for the specific service requested (e.g., Maternity, Surgery).",
+    "Agent should ask for a procedure code for surgery.",
+    "Agent should confirm that precertification is required for the service.",
+    "Agent should offer options: check another service, member, or submit an authorization.",
+    "Agent should acknowledge the request to submit authorization, provide a reference number, and indicate a transfer to an associate.",
+    "Agent should call the tool `construct_end_session_args`.",
+    "Agent should call the tool `end_session`."
+  ]
+}

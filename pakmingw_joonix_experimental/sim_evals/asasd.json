@@ -1,0 +1,41 @@
+{
+  "steps": [
+    {
+      "static_utterance": "hello"
+    },
+    {
+      "goal": "Provide National Provider ID",
+      "success_criteria": "The agent confirms the NPI and asks for the Member ID.",
+      "response_guide": "Provide a valid 10-digit NPI, such as '1234567890'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Member ID and Date of Birth with retries",
+      "success_criteria": "The agent processes three attempts to verify Member ID and Date of Birth, then states final failure.",
+      "response_guide": "First, provide a member ID like '1111100000'. Then, provide a date of birth like 'December 12th, 1994'. When asked for confirmation after a failed attempt, say 'yes'. Repeat this process three times.",
+      "max_turns": 8
+    }
+  ],
+  "expectations": [
+    "Welcome message is played.",
+    "Agent asks for the National Provider ID.",
+    "Agent calls the tool `intercept_and_score_reasoning`.",
+    "Agent calls the tool `retry_counter` with `resetRetryCounter: true` for NPI.",
+    "Agent calls the tool `set_nga_context_variable` to store the NPI.",
+    "Agent calls the tool `resilient_provider_auth` to validate the NPI.",
+    "Agent confirms NPI validation and asks for the Member ID.",
+    "Agent asks for the member's date of birth.",
+    "Agent calls the tool `retry_counter` with `resetRetryCounter: true` for Member ID.",
+    "Agent calls the tool `set_nga_context_variable` to store the Member ID.",
+    "Agent calls the tool `retry_counter` with `resetRetryCounter: true` for Date of Birth.",
+    "Agent calls the tool `set_nga_context_variable` to store the Date of Birth.",
+    "Agent calls the tool `unified_member_verification` with member_id and date_of_birth.",
+    "Agent responds that member verification failed (member not found).",
+    "Agent asks the user to confirm the provided Member ID and Date of Birth.",
+    "Agent calls the tool `retry_counter` with `resetRetryCounter: false` (incrementing retry count).",
+    "Agent calls the tool `set_nga_context_variable` to clear `member_id` (and implicitly other member-related variables).",
+    "Agent apologizes and prompts for the Member ID again after user confirms incorrect details.",
+    "Agent successfully processes three rounds of Member ID and Date of Birth collection and verification failure.",
+    "After three failed verification attempts, the agent apologizes, states inability to verify, and offers to check another member or something else."
+  ]
+}

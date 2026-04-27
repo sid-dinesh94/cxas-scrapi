@@ -1,0 +1,43 @@
+{
+  "steps": [
+    {
+      "static_utterance": "hi"
+    },
+    {
+      "goal": "Provide a valid 10-digit National Provider ID.",
+      "response_guide": "Say '1234567890'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide the Member ID.",
+      "response_guide": "Say '575w25854'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide the member's Date of Birth.",
+      "response_guide": "Say 'mar 23 1979'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide an invalid Date of Service repeatedly until the call ends.",
+      "response_guide": "Provide incomplete or invalid dates of service multiple times, such as 'august 1', '2025', and 'august 4', to trigger the agent to end the call for security reasons after three failed attempts.",
+      "max_turns": 5
+    }
+  ],
+  "expectations": [
+    "Agent should greet the user and request the 10-digit National Provider ID.",
+    "Agent should call the tool `set_nga_context_variable`.",
+    "Agent should confirm NPI validation and request the Member ID.",
+    "Agent should call the tool `resilient_provider_auth`.",
+    "Agent should call the tool `retry_counter`.",
+    "Agent should acknowledge Member ID and ask for Date of Birth.",
+    "Agent should call the tool `retry_counter`.",
+    "Agent should call the tool `unified_member_verification`.",
+    "Agent should confirm identity verification, state inactive policy, and ask for Date of Service.",
+    "Agent should prompt for a valid date of service after an incomplete date.",
+    "Agent should call the tool `retry_counter`.",
+    "Agent should end the call and apologize after three invalid Date of Service attempts.",
+    "Agent should call the tool `construct_end_session_args`.",
+    "Agent should call the tool `end_session`."
+  ]
+}

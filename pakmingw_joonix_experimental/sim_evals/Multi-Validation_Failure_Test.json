@@ -1,0 +1,23 @@
+{
+  "steps": [
+    {
+      "static_utterance": "Hi"
+    },
+    {
+      "goal": "Provide National Provider ID",
+      "success_criteria": "Agent successfully validates the NPI and asks for the Member ID.",
+      "response_guide": "Provide the 10-digit NPI `1234567890`.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Try to verify member details up to 3 times with failing inputs.",
+      "success_criteria": "Agent allows up to 3 failed verification attempts before escalating.",
+      "response_guide": "Provide Member ID 'M12345678' and DOB '1990-01-01'. If the agent asks to try again or confirm, repeat the exact same inputs.",
+      "max_turns": 10
+    }
+  ],
+  "expectations": [
+    "Agent should call the tool `unified_member_verification` exactly 3 times before escalating.",
+    "Agent should escalate or hang up after the 3rd failed verification attempt."
+  ]
+}

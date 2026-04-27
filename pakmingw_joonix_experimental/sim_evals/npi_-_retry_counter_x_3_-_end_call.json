@@ -1,0 +1,35 @@
+{
+  "steps": [
+    {
+      "static_utterance": "hi"
+    },
+    {
+      "goal": "Provide an invalid NPI for the first attempt",
+      "success_criteria": "The agent asks for a 10-digit NPI again.",
+      "response_guide": "Provide a number that is not 10 digits long, for example, '1234567'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide another invalid NPI for the second attempt",
+      "success_criteria": "The agent asks for a 10-digit NPI again.",
+      "response_guide": "Provide a number that is not 10 digits long, for example, '67876'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide a third invalid NPI, leading to call termination",
+      "success_criteria": "The agent terminates the call due to too many invalid NPI attempts.",
+      "response_guide": "Provide a number that is not 10 digits long, for example, '233'.",
+      "max_turns": 1
+    }
+  ],
+  "expectations": [
+    "Agent should greet the user and ask for their ten-digit National Provider ID.",
+    "Agent should call the tool `set_nga_context_variable`.",
+    "Agent should call the tool `retry_counter`.",
+    "Agent should inform the user that the NPI needs to be a 10-digit number.",
+    "Agent should inform the user that the NPI needs to be a 10-digit number again.",
+    "Agent should announce that it is having trouble collecting the NPI and will end the call.",
+    "Agent should call the tool `construct_end_session_args`.",
+    "Agent should call the tool `end_session`."
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "steps": [
+    {
+      "static_utterance": "Hello"
+    },
+    {
+      "goal": "Provide National Provider ID.",
+      "success_criteria": "The agent validates the NPI and asks for the Member ID.",
+      "response_guide": "Provide a 10-digit NPI, such as '1234567890'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide Member ID.",
+      "success_criteria": "The agent acknowledges the Member ID and asks for the Date of Birth.",
+      "response_guide": "Provide the member ID, for example, '259W17936'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide Member's Date of Birth.",
+      "success_criteria": "The agent verifies the member's identity and asks if the service is for inpatient or outpatient.",
+      "response_guide": "Provide the member's date of birth, such as 'November 16, 1985'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Express confusion multiple times when asked about inpatient/outpatient service, leading to escalation.",
+      "success_criteria": "The agent re-prompts the question twice, and then escalates the call after the third unclear response.",
+      "response_guide": "When asked about inpatient or outpatient service, initially say 'Can you please repeat?' Then, if asked again, say 'Can you please repeat again?' Do this a third time if prompted.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "Welcome message played.",
+    "Agent should call the tool `set_nga_context_variable` to set `current_state` to `VALIDATING_PROVIDER_ID`.",
+    "Agent should ask for the National Provider ID (NPI).",
+    "Agent should call the tool `resilient_provider_auth`.",
+    "Agent should transition to the `AUTHENTICATING_MEMBER` state.",
+    "Agent should ask for the Member ID.",
+    "Agent should ask for the Member's Date of Birth.",
+    "Agent should call the tool `unified_member_verification`.",
+    "Agent should verify the member's identity successfully.",
+    "Agent should transition to the `DETERMINE_COVERAGE` state.",
+    "Agent should ask if the service is for inpatient or outpatient.",
+    "Agent should re-prompt the question about inpatient/outpatient service after the first two unclear responses.",
+    "After three unclear responses, the agent should escalate the call.",
+    "Agent should call the tool `construct_end_session_args` with `outcome` set to `escalate`.",
+    "Agent should call the tool `end_session`."
+  ]
+}

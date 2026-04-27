@@ -1,0 +1,36 @@
+{
+  "steps": [
+    {
+      "static_utterance": "Hello"
+    },
+    {
+      "goal": "Provide the National Provider ID (NPI).",
+      "success_criteria": "The agent successfully validates the NPI and asks for the Member ID.",
+      "response_guide": "Provide the 10-digit NPI: 1234567890.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the Member ID and Date of Birth.",
+      "success_criteria": "The agent verifies the member's identity but notes an inactive policy and asks for the date of service.",
+      "response_guide": "First, provide the Member ID: 575W25854. Then, when asked, provide the Date of Birth: March 23, 1979.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the date of service for the inactive policy and receive the final outcome.",
+      "success_criteria": "The agent indicates inability to authenticate the policy with the provided date of service and advises contacting the number on the ID card.",
+      "response_guide": "Provide the Date of Service: January 10, 2026.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "Agent should initiate the conversation by asking for the National Provider ID.",
+    "Agent should call the tool `set_nga_context_variable`.",
+    "Agent should call the tool `resilient_provider_auth`.",
+    "Agent should confirm NPI validation and ask for the Member ID.",
+    "Agent should ask for the member's date of birth.",
+    "Agent should call the tool `unified_member_verification`.",
+    "Agent should inform that the policy is inactive and ask for the date of service.",
+    "Agent should call the tool `unified_member_verification` again.",
+    "Agent should state inability to authenticate the policy and advise contacting the number on the ID card."
+  ]
+}

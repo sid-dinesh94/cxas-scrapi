@@ -1,0 +1,36 @@
+{
+  "steps": [
+    {
+      "static_utterance": "1234567890"
+    },
+    {
+      "goal": "Provide Member ID and Date of Birth for verification",
+      "success_criteria": "The agent successfully verifies the member's identity and asks about the service type (inpatient or outpatient).",
+      "response_guide": "When prompted, first provide the Member ID as 'Member ID is 259W17936.', then when prompted again, provide the date of birth as 'November 16th 1985'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Indicate outpatient service type",
+      "success_criteria": "The agent acknowledges the outpatient service and proceeds to ask for the procedure code.",
+      "response_guide": "Respond with 'outpatient'.",
+      "max_turns": 2
+    },
+    {
+      "goal": "Provide multiple invalid procedure codes and reach wrap-up menu",
+      "success_criteria": "The agent correctly identifies the invalid procedure codes for three attempts and then presents the call wrap-up menu options.",
+      "response_guide": "First respond with 'abc12', then 'one two a b c', and finally 'a b c 12'. Expect the agent to indicate invalid codes and then offer wrap-up choices.",
+      "max_turns": 5
+    }
+  ],
+  "expectations": [
+    "Agent should call the tool `resilient_provider_auth`.",
+    "Agent should ask for the member's date of birth after NPI validation.",
+    "Agent should call the tool `unified_member_verification`.",
+    "Agent should set the `current_state` to `DETERMINE_COVERAGE` after successful member verification.",
+    "Agent should ask if the service is for inpatient or outpatient.",
+    "Agent should call the tool `set_nga_context_variable` to set `current_state` to `DETERMINE_COVERAGE_OUTPATIENT`.",
+    "Agent should ask for the 5-digit procedure code.",
+    "Agent should indicate that the provided procedure code is not valid after each incorrect attempt.",
+    "Agent should offer options to check another service, another member, or something else after multiple invalid procedure code attempts."
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "steps": [
+    {
+      "static_utterance": "1234567890"
+    },
+    {
+      "goal": "Provide Member ID and get asked for Date of Birth",
+      "success_criteria": "The agent acknowledges the Member ID and asks for the member's date of birth.",
+      "response_guide": "Provide the member ID '259W17936'.",
+      "max_turns": 2
+    },
+    {
+      "goal": "Verify member identity by providing date of birth, including retries for incorrect format or memory issues, eventually leading to verification failure.",
+      "success_criteria": "The agent processes several attempts to provide a date of birth and eventually confirms that member identity verification failed.",
+      "response_guide": "First, provide 'January 10th, 2027'. If asked again, say 'One day in 1984'. If asked again, say 'I don't remember the exact date.'. If asked again, provide 'January 9th, 1997'.",
+      "max_turns": 10
+    }
+  ],
+  "expectations": [
+    "Welcome message played.",
+    "Agent should call the tool `set_nga_context_variable`.",
+    "Agent should ask for the National Provider ID (NPI).",
+    "Agent should call the tool `resilient_provider_auth` with `providerId` as '1234567890'.",
+    "Agent should confirm NPI validation and ask for the Member ID.",
+    "Agent should ask for the member's date of birth.",
+    "Agent should call the tool `unified_member_verification` with `birthDate` '2027-01-10' and `memberId` '259W17936'.",
+    "Tool `unified_member_verification` should indicate an `invalid_dob` status.",
+    "Agent should re-prompt for the member's date of birth.",
+    "Agent should re-prompt again for the member's date of birth.",
+    "Agent should call the tool `unified_member_verification` with `birthDate` '1997-01-09' and `memberId` '259W17936'.",
+    "Tool `unified_member_verification` should indicate `member_not_found` status.",
+    "Agent should inform the user that verification failed and offer further options."
+  ]
+}

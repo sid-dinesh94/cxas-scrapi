@@ -1,0 +1,51 @@
+{
+  "steps": [
+    {
+      "static_utterance": "1234567890",
+      "inject_variables": {}
+    },
+    {
+      "goal": "Provide Member ID and Date of Birth for member verification.",
+      "success_criteria": "The agent successfully verifies the member's identity and asks for the service type (inpatient/outpatient).",
+      "response_guide": "When prompted, provide the member ID '259W17936'. Then, when asked, provide the date of birth 'November 16, 1985'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify an inpatient service and then provide 'skilled nursing facility' as the type.",
+      "success_criteria": "The agent identifies that pre-certification is required and presents options for further action.",
+      "response_guide": "When asked if the service is inpatient or outpatient, state 'inpatient'. When asked for the specific service, say 'skilled nursing facility'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Request to submit an authorization and then accept a reference number.",
+      "success_criteria": "The agent provides guidance on submitting authorization, offers a reference number, and then provides it upon acceptance.",
+      "response_guide": "When offered options, choose 'Submit an authorization'. When asked if you'd like a reference number, respond 'Yes'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Confirm the resolution of the call to wrap up the conversation.",
+      "success_criteria": "The agent thanks the user, expresses good wishes, and initiates the call wrap-up process.",
+      "response_guide": "When asked if the issue was resolved, confirm 'Yes'.",
+      "max_turns": 2
+    }
+  ],
+  "expectations": [
+    "Welcome message played.",
+    "Agent asks for the ten-digit National Provider ID.",
+    "Agent should call the tool `resilient_provider_auth`.",
+    "Agent confirms NPI validation and asks for Member ID.",
+    "Agent should call the tool `unified_member_verification`.",
+    "Agent confirms member identity and asks if the service is for an inpatient or outpatient.",
+    "Agent should call the tool `set_nga_context_variable`.",
+    "Agent asks for the specific inpatient service type (e.g., Maternity, Surgery).",
+    "Agent confirms pre-certification is required for skilled nursing facility.",
+    "Agent presents options for next steps (e.g., check another service, submit authorization).",
+    "Agent advises user to use Availity to submit an authorization.",
+    "Agent offers a reference number.",
+    "Agent provides the reference number.",
+    "Agent asks if the issue was resolved.",
+    "Agent thanks the user and wishes them a good day.",
+    "Agent should call the tool `construct_end_session_args`.",
+    "Agent should call the tool `end_session`."
+  ]
+}

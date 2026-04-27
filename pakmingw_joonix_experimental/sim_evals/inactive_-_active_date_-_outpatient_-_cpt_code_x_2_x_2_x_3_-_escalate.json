@@ -1,0 +1,141 @@
+{
+  "steps": [
+    {
+      "static_utterance": "hi"
+    },
+    {
+      "goal": "Provide National Provider ID",
+      "success_criteria": "The agent validates the NPI and asks for the Member ID.",
+      "response_guide": "Provide a 10-digit National Provider ID, for example, '1234567890'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Member ID",
+      "success_criteria": "The agent acknowledges the Member ID and asks for the member's Date of Birth.",
+      "response_guide": "Provide the Member ID, such as '575w25854'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Date of Birth",
+      "success_criteria": "The agent verifies the member's identity but notes the policy is inactive, then asks for the Date of Service.",
+      "response_guide": "Provide the member's date of birth, for example, 'March 23 1979'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Date of Service",
+      "success_criteria": "The agent verifies coverage for the provided Date of Service and asks whether the service is for inpatient or outpatient.",
+      "response_guide": "Provide the date of service, such as '1st August 2025'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify Service Type as Outpatient",
+      "success_criteria": "The agent acknowledges the outpatient service type and asks for the 5-digit CPT or procedure code.",
+      "response_guide": "State that the service is 'outpatient'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide an invalid CPT code (short)",
+      "success_criteria": "The agent indicates the CPT code is invalid and asks for a retry.",
+      "response_guide": "Provide an invalid CPT code like '234'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide another invalid CPT code (alphanumeric)",
+      "success_criteria": "The agent indicates the CPT code is invalid and asks for a retry.",
+      "response_guide": "Provide an invalid CPT code like 'as132'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide a valid CPT code",
+      "success_criteria": "The agent confirms pre-certification is not required for the CPT code and asks if there's another procedure code.",
+      "response_guide": "Provide a valid CPT code, such as '99202'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Indicate desire to check another CPT code",
+      "success_criteria": "The agent prompts for the next 5-digit procedure code.",
+      "response_guide": "Respond affirmatively, for example, 'yes'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide an invalid CPT code (short, first retry)",
+      "success_criteria": "The agent indicates the CPT code is invalid and asks for a retry.",
+      "response_guide": "Provide an invalid CPT code like '1234'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide another invalid CPT code (alphanumeric, second retry)",
+      "success_criteria": "The agent indicates the CPT code is invalid and asks for a retry.",
+      "response_guide": "Provide an invalid CPT code like 'asdf2'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide a valid CPT code again",
+      "success_criteria": "The agent confirms pre-certification is not required and asks if there's another procedure code.",
+      "response_guide": "Provide a valid CPT code, such as '99202'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Indicate desire to check another CPT code again",
+      "success_criteria": "The agent prompts for the next 5-digit procedure code.",
+      "response_guide": "Respond affirmatively, for example, 'yes'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide an invalid CPT code (short, first retry in new sequence)",
+      "success_criteria": "The agent indicates the CPT code is invalid and asks for a retry.",
+      "response_guide": "Provide an invalid CPT code like '234'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide another invalid CPT code (alphanumeric, second retry in new sequence)",
+      "success_criteria": "The agent indicates the CPT code is invalid and asks for a retry.",
+      "response_guide": "Provide an invalid CPT code like 'asd23'.",
+      "max_turns": 1
+    },
+    {
+      "goal": "Provide a final invalid CPT code leading to escalation",
+      "success_criteria": "The agent escalates the call due to too many invalid CPT attempts.",
+      "response_guide": "Provide a final invalid CPT code like '23as'.",
+      "max_turns": 1
+    }
+  ],
+  "expectations": [
+    "Welcome message played, including an explanation of precertification and a request for NPI.",
+    "Agent should call the tool `resilient_provider_auth` to validate the NPI.",
+    "Agent should call the tool `retry_counter` to reset it for NPI collection.",
+    "Agent should confirm NPI validation and ask for the Member ID.",
+    "Agent should call the tool `retry_counter` to reset it for Member ID/DOB collection.",
+    "Agent should ask for the member's Date of Birth.",
+    "Agent should call the tool `unified_member_verification` with the Member ID and Date of Birth.",
+    "Agent should state that the policy appears inactive and ask for the Date of Service.",
+    "Agent should call the tool `retry_counter` to reset it for Date of Service collection.",
+    "Agent should call the tool `unified_member_verification` with the Date of Service.",
+    "Agent should confirm successful verification and ask whether the service is for inpatient or outpatient.",
+    "Agent should call the tool `set_nga_context_variable` to set the state to 'DETERMINE_COVERAGE_OUTPATIENT'.",
+    "Agent should ask for the 5-digit CPT or procedure code.",
+    "Agent should call the tool `retry_counter` to reset it for CPT code collection.",
+    "Agent should respond that the procedure code is invalid and ask to retry.",
+    "Agent should call the tool `retry_counter` to increment the retry count for CPT.",
+    "Agent should respond that the procedure code is invalid and ask to retry (second invalid attempt).",
+    "Agent should call the tool `retry_counter` to increment the retry count for CPT.",
+    "Agent should call the tool `resilient_mars` with the valid CPT code.",
+    "Agent should state that pre-certification is not required and ask if there's another procedure code.",
+    "Agent should call the tool `retry_counter` to reset it for CPT code when the user indicates checking another.",
+    "Agent should prompt for the next 5-digit procedure code.",
+    "Agent should respond that the procedure code is invalid and ask to retry (third invalid attempt overall, first in new sequence).",
+    "Agent should call the tool `retry_counter` to increment the retry count for CPT.",
+    "Agent should respond that the procedure code is invalid and ask to retry (fourth invalid attempt overall, second in new sequence).",
+    "Agent should call the tool `retry_counter` to increment the retry count for CPT.",
+    "Agent should call the tool `resilient_mars` with the valid CPT code.",
+    "Agent should state that pre-certification is not required and ask if there's another procedure code.",
+    "Agent should call the tool `retry_counter` to reset it for CPT code when the user indicates checking another.",
+    "Agent should prompt for the next 5-digit procedure code.",
+    "Agent should respond that the procedure code is invalid and ask to retry (fifth invalid attempt overall, first in new sequence).",
+    "Agent should call the tool `retry_counter` to increment the retry count for CPT.",
+    "Agent should respond that the procedure code is invalid and ask to retry (sixth invalid attempt overall, second in new sequence).",
+    "Agent should indicate that the call will be transferred to an associate.",
+    "Agent should call the tool `construct_end_session_args` with outcome 'escalate' and reason 'verification_failed'.",
+    "Agent should call the tool `end_session` to terminate the call."
+  ]
+}

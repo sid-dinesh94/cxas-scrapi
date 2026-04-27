@@ -1,0 +1,72 @@
+{
+  "steps": [
+    {
+      "static_utterance": "Hi"
+    },
+    {
+      "goal": "Provide National Provider ID",
+      "success_criteria": "Agent successfully validates the NPI and asks for the Member ID.",
+      "response_guide": "Provide the 10-digit NPI `1234567890`.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Member ID",
+      "success_criteria": "Agent acknowledges the Member ID and asks for the Date of Birth.",
+      "response_guide": "Provide the member ID `379Y28941`.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Date of Birth",
+      "success_criteria": "Agent verifies member identity and asks about service type (inpatient/outpatient).",
+      "response_guide": "Provide the date of birth `1985-01-01`.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify inpatient service",
+      "success_criteria": "Agent acknowledges inpatient service and asks for specific service type.",
+      "response_guide": "Indicate that the service is `inpatient`.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide specific inpatient service",
+      "success_criteria": "Agent determines precertification is required and offers further options.",
+      "response_guide": "Specify the service as `Skilled Nursing`.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Decline further options",
+      "success_criteria": "Agent moves to offer a reference number.",
+      "response_guide": "Decline to check another service/member or submit authorization.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Decline reference number",
+      "success_criteria": "Agent asks about resolution of the call.",
+      "response_guide": "Decline a reference number.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Confirm call resolution",
+      "success_criteria": "Agent concludes the call positively.",
+      "response_guide": "Confirm that the call was resolved.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "Welcome message played.",
+    "Agent should set current state to VALIDATING_PROVIDER_ID.",
+    "Agent should call the tool `resilient_provider_auth` with `providerId` '1234567890'.",
+    "Agent should transition to collecting member details.",
+    "Agent should ask for the member's date of birth.",
+    "Agent should call the tool `unified_member_verification` with member details.",
+    "Agent should ask if the service is for inpatient or outpatient.",
+    "Agent should set the current state to DETERMINE_COVERAGE_INPATIENT.",
+    "Agent should ask for the specific inpatient service type.",
+    "Agent should state that pre-certification is required.",
+    "Agent should offer options like checking another service or member.",
+    "Agent should offer a reference number.",
+    "Agent should ask if the call was resolved.",
+    "Agent should thank the user and end the call.",
+    "Agent should call the tool `end_session`."
+  ]
+}

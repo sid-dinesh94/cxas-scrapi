@@ -1,0 +1,66 @@
+{
+  "steps": [
+    {
+      "static_utterance": "Hi"
+    },
+    {
+      "goal": "Provide National Provider ID",
+      "success_criteria": "The agent successfully validates the provided NPI and asks for the Member ID.",
+      "response_guide": "Provide a valid 10-digit National Provider ID, for example, '1234567890'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide Member ID",
+      "success_criteria": "The agent acknowledges the Member ID and asks for the member's Date of Birth.",
+      "response_guide": "Provide the Member ID, including any letters, for example, '259W17936'.",
+      "max_turns": 2
+    },
+    {
+      "goal": "Provide Date of Birth and Verify Member",
+      "success_criteria": "The agent successfully verifies the member using the provided Date of Birth and asks if the service is for inpatient or outpatient.",
+      "response_guide": "Provide the member's Date of Birth, for example, 'November 16, 1985'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify Outpatient Service",
+      "success_criteria": "The agent confirms the service type as outpatient and asks for the procedure code.",
+      "response_guide": "State that the service is 'outpatient'.",
+      "max_turns": 2
+    },
+    {
+      "goal": "Provide Procedure Code for Pre-certification",
+      "success_criteria": "The agent checks the procedure code for precertification requirements and asks if there are other procedure codes.",
+      "response_guide": "Provide a valid 5-digit procedure code, for example, '93461'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Indicate no further procedure codes",
+      "success_criteria": "The agent presents options for next steps after no more procedure codes are provided.",
+      "response_guide": "Indicate that there are no other procedure codes to check.",
+      "max_turns": 2
+    },
+    {
+      "goal": "Request to submit authorization and transfer",
+      "success_criteria": "The agent provides information about submitting authorization and initiates a transfer to a live agent.",
+      "response_guide": "Request to 'submit authorization'.",
+      "max_turns": 2
+    }
+  ],
+  "expectations": [
+    "Welcome message played.",
+    "Agent asks for the 10-digit National Provider ID.",
+    "Agent should call the tool `resilient_provider_auth` to validate the NPI.",
+    "Agent asks for the Member ID.",
+    "Agent asks for the member's Date of Birth.",
+    "Agent should call the tool `unified_member_verification` to verify the member's identity.",
+    "Agent asks if the service is for inpatient or outpatient.",
+    "Agent should call the tool `set_nga_context_variable` to update the current state to `DETERMINE_COVERAGE_OUTPATIENT`.",
+    "Agent asks for the 5-digit procedure code.",
+    "Agent should call the tool `resilient_mars` to check precertification requirements.",
+    "Agent confirms precertification is required and asks about other procedure codes.",
+    "Agent offers options for further assistance (e.g., check another service, member, or submit authorization).",
+    "Agent provides instructions for submitting authorization and transfers the call to a human agent.",
+    "Agent should call the tool `construct_end_session_args` to prepare transfer parameters.",
+    "Agent should call the tool `end_session` to perform the transfer."
+  ]
+}

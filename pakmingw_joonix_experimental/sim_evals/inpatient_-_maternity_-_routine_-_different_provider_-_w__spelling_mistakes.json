@@ -1,0 +1,52 @@
+{
+  "steps": [
+    {
+      "static_utterance": "1234567890"
+    },
+    {
+      "goal": "Provide the member ID for verification.",
+      "response_guide": "Provide the member ID, for example, '575W25854'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the member's Date of Birth.",
+      "response_guide": "Provide a date of birth, for example, 'March 23rd, 1979'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the Date of Service for the inactive policy.",
+      "response_guide": "Provide a date of service, for example, 'August 1st, 2025'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify that the service is inpatient.",
+      "response_guide": "Respond by saying 'inpatient'.",
+      "max_turns": 2
+    },
+    {
+      "goal": "Specify that the service is related to maternity.",
+      "response_guide": "Respond by saying 'maternity'.",
+      "max_turns": 2
+    },
+    {
+      "goal": "Confirm it's a routine delivery.",
+      "response_guide": "Respond by saying 'routine'.",
+      "max_turns": 2
+    },
+    {
+      "goal": "Request to check details for a different provider.",
+      "response_guide": "Say something like 'check patient for a different provider' or 'I want to check another provider'.",
+      "max_turns": 2
+    }
+  ],
+  "expectations": [
+    "Welcome message and NPI prompt played.",
+    "Agent should call the tool `set_nga_context_variable` to set current state to VALIDATING_PROVIDER_ID.",
+    "Agent should call the tool `resilient_provider_auth` to validate NPI.",
+    "Agent should call the tool `unified_member_verification` to verify member identity with DOB.",
+    "Agent should call the tool `unified_member_verification` to verify member identity with DOS.",
+    "Agent should call the tool `set_nga_context_variable` to set current state to DETERMINE_COVERAGE.",
+    "Agent should call the tool `set_nga_context_variable` to set current state to DETERMINE_COVERAGE_INPATIENT.",
+    "Agent should call the tool `set_nga_context_variable` to set current state to VALIDATING_PROVIDER_ID."
+  ]
+}

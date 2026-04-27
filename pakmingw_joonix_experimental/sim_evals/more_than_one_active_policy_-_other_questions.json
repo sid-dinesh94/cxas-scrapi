@@ -1,0 +1,42 @@
+{
+  "steps": [
+    {
+      "static_utterance": ""
+    },
+    {
+      "goal": "Provide the 10-digit National Provider ID.",
+      "success_criteria": "The agent validates the NPI and asks for the Member ID.",
+      "response_guide": "Provide '1234567890'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the Member ID.",
+      "success_criteria": "The agent acknowledges the Member ID and asks for the Date of Birth.",
+      "response_guide": "Provide '276Y20486'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the member's Date of Birth.",
+      "success_criteria": "The agent verifies the member's identity, notes multiple active policies, and asks about next steps.",
+      "response_guide": "Provide 'October 20 1990'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Indicate that you have other questions.",
+      "success_criteria": "The agent offers options for further assistance.",
+      "response_guide": "Respond with 'Other questions'.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "Agent greets the user and asks for the 10-digit National Provider ID.",
+    "Agent should call the tool `set_nga_context_variable` with `variable_name` 'current_state' and `variable_value` 'VALIDATING_PROVIDER_ID'.",
+    "Agent should call the tool `resilient_provider_auth` with `providerId` '1234567890'.",
+    "Agent confirms NPI validation and asks for Member ID.",
+    "Agent asks for the member's date of birth.",
+    "Agent should call the tool `unified_member_verification` with `memberId` '276Y20486' and `birthDate` '1990-10-20'.",
+    "Agent states identity is verified and that the member has multiple active policies.",
+    "Agent asks if the user wants to transfer to an agent or has other questions.",
+    "Agent asks if the user wants to check another service, another member, or something else."
+  ]
+}

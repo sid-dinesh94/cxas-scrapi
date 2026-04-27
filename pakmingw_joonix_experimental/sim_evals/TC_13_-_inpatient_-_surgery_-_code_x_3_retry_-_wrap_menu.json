@@ -1,0 +1,44 @@
+{
+  "steps": [
+    {
+      "static_utterance": "1234567890"
+    },
+    {
+      "goal": "Provide the member ID and then the date of birth to verify identity.",
+      "success_criteria": "The agent confirms successful member verification and asks about inpatient or outpatient service.",
+      "response_guide": "First, provide the member ID '259W17936'. Then, when asked, provide the date of birth 'November 16th, 1985'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Confirm the service is for an inpatient.",
+      "success_criteria": "The agent acknowledges the inpatient service type and asks for more details.",
+      "response_guide": "State 'inpatient' when asked about the service type.",
+      "max_turns": 2
+    },
+    {
+      "goal": "Specify the inpatient service as surgery.",
+      "success_criteria": "The agent asks for a procedure code.",
+      "response_guide": "State 'surgery' when asked about the specific service type.",
+      "max_turns": 2
+    },
+    {
+      "goal": "Provide invalid procedure codes repeatedly until the agent offers an alternative.",
+      "success_criteria": "The agent informs that it is having trouble validating the code after multiple attempts and offers a wrap-up menu.",
+      "response_guide": "First, provide 'ABC12'. Then, when prompted to retry, provide '12 ABC'. Finally, when prompted again, provide 'ABC 123'.",
+      "max_turns": 5
+    }
+  ],
+  "expectations": [
+    "Agent should call the tool `resilient_provider_auth` with the provided provider ID.",
+    "Agent should set the `current_state` to `AUTHENTICATING_MEMBER`.",
+    "Agent should ask for the member's date of birth after receiving the member ID.",
+    "Agent should call the tool `unified_member_verification` with the member ID and date of birth.",
+    "Agent should set the `current_state` to `DETERMINE_COVERAGE`.",
+    "Agent should ask if the service is for an inpatient or outpatient.",
+    "Agent should set the `current_state` to `DETERMINE_COVERAGE_INPATIENT`.",
+    "Agent should ask for the specific inpatient service type (e.g., Maternity, Surgery).",
+    "Agent should ask for the procedure code for the selected service.",
+    "Agent should inform the user that the provided procedure code is invalid and ask to retry after the first two incorrect attempts.",
+    "Agent should reach the retry limit for invalid procedure codes and offer a wrap-up menu."
+  ]
+}

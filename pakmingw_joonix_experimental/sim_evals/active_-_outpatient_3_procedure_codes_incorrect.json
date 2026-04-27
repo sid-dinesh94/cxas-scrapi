@@ -1,0 +1,56 @@
+{
+  "steps": [
+    {
+      "static_utterance": "Hello"
+    },
+    {
+      "goal": "Provide a valid 10-digit NPI.",
+      "success_criteria": "The agent validates the NPI and asks for the Member ID.",
+      "response_guide": "Provide a 10-digit NPI, for example, '1234567890'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide a valid Member ID.",
+      "success_criteria": "The agent asks for the member's date of birth.",
+      "response_guide": "Provide a Member ID, for example, '259w17936'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide the member's date of birth.",
+      "success_criteria": "The agent confirms identity verification and asks about the service type (inpatient/outpatient).",
+      "response_guide": "Provide the date of birth, for example, 'November 16 1985'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify the service type as outpatient.",
+      "success_criteria": "The agent acknowledges the outpatient service and asks for the 5-digit procedure code.",
+      "response_guide": "State that the service is 'outpatient'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide three invalid 5-digit procedure codes consecutively to trigger escalation.",
+      "success_criteria": "The agent escalates the call to a live agent after repeated invalid procedure code attempts.",
+      "response_guide": "Provide an invalid procedure code (e.g., '123', '342', '6765') three times when prompted.",
+      "max_turns": 7
+    }
+  ],
+  "expectations": [
+    "Welcome message played.",
+    "Agent should ask for the National Provider ID (NPI).",
+    "Agent should call the tool `set_nga_context_variable` with `variable_name: current_state` and `variable_value: VALIDATING_PROVIDER_ID`.",
+    "Agent should call the tool `retry_counter` with `resetRetryCounter: true`.",
+    "Agent should call the tool `resilient_provider_auth` to validate the NPI.",
+    "Agent should ask for the Member ID.",
+    "Agent should ask for the member's date of birth.",
+    "Agent should call the tool `unified_member_verification` to authenticate the member.",
+    "Agent should ask if the service is inpatient or outpatient.",
+    "Agent should call the tool `set_nga_context_variable` with `variable_name: current_state` and `variable_value: DETERMINE_COVERAGE_OUTPATIENT`.",
+    "Agent should ask for the 5-digit procedure code.",
+    "Agent should call the tool `retry_counter` with `resetRetryCounter: false`.",
+    "Agent should respond with an error message for an invalid procedure code, prompting for retry.",
+    "Agent should call the tool `conversation_reflection` to assess the conversation state after multiple invalid inputs.",
+    "Agent should indicate transferring the call to a live associate.",
+    "Agent should call the tool `construct_end_session_args` with `outcome: escalate` and `escalation_reason: verification_failed`.",
+    "Agent should call the tool `end_session` to conclude the conversation."
+  ]
+}

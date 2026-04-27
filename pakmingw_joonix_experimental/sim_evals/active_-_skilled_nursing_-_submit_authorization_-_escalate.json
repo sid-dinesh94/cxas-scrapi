@@ -1,0 +1,57 @@
+{
+  "steps": [
+    {
+      "static_utterance": "1234567890"
+    },
+    {
+      "goal": "Provide member ID",
+      "success_criteria": "The agent successfully extracts the member ID and asks for the Date of Birth.",
+      "response_guide": "Provide the member ID '259W17936'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Provide member's date of birth",
+      "success_criteria": "The agent successfully verifies the member's identity and asks about the service type.",
+      "response_guide": "State the member's date of birth as 'the sixteenth of November nineteen eighty-five'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify inpatient service",
+      "success_criteria": "The agent confirms inpatient service and asks for specific service details.",
+      "response_guide": "Indicate that the service is 'inpatient'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Specify skilled nursing service",
+      "success_criteria": "The agent identifies 'skilled nursing' and states that pre-certification is required.",
+      "response_guide": "State 'skilled nursing'.",
+      "max_turns": 3
+    },
+    {
+      "goal": "Request to submit an authorization",
+      "success_criteria": "The agent provides authorization information and offers to transfer the call.",
+      "response_guide": "Say 'submit an authorization'.",
+      "max_turns": 3
+    }
+  ],
+  "expectations": [
+    "Welcome message played.",
+    "Agent asks for National Provider ID.",
+    "Agent should call the tool `set_nga_context_variable`.",
+    "Agent validates National Provider ID.",
+    "Agent should call the tool `resilient_provider_auth`.",
+    "Agent asks for Member ID.",
+    "Agent acknowledges Member ID and asks for Date of Birth.",
+    "Agent verifies member identity.",
+    "Agent should call the tool `unified_member_verification`.",
+    "Agent asks about service type (inpatient/outpatient).",
+    "Agent confirms inpatient service.",
+    "Agent should call the tool `set_nga_context_variable`.",
+    "Agent asks for specific inpatient service type.",
+    "Agent states pre-certification is required for skilled nursing.",
+    "Agent offers further options, including submitting an authorization.",
+    "Agent offers to connect to an associate for authorization submission and provides a reference number.",
+    "Agent should call the tool `construct_end_session_args`.",
+    "Agent should call the tool `end_session`."
+  ]
+}
