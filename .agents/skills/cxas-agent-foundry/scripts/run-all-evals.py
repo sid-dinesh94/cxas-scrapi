@@ -245,7 +245,7 @@ def poll_golden_results(config, run_name, timeout=GOLDEN_TIMEOUT):
     return run_id_short
 
 
-def run_sims(channel):
+def run_sims(channel, tag=None, runs=1):
     """Run local sims via scrapi-sim-runner.py."""
     print("\n" + "=" * 60)
     print("PHASE 4: Local Simulations")
@@ -257,7 +257,10 @@ def run_sims(channel):
         "--priority", "P0",
         "--parallel", "3",
         "--channel", channel,
+        "--runs", str(runs),
     ]
+    if tag:
+        cmd.extend(["--tag", tag])
 
     print(f"  Running: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=False, text=True, cwd=resolve_project_dir())
@@ -349,6 +352,10 @@ def main():
         "--skip-goldens", action="store_true",
         help="Skip golden evals (just run local tests + sims)"
     )
+    parser.add_argument(
+        "--tag", default=None,
+        help="Tag to filter evaluations"
+    )
     args = parser.parse_args()
 
     # Load config
@@ -386,7 +393,7 @@ def main():
     # --- Step 4: Run sims ---
     sim_results_path = None
     if not args.skip_sims:
-        sim_results_path = run_sims(channel)
+        sim_results_path = run_sims(channel, tag=args.tag, runs=args.runs)
 
     # --- Step 5: Generate combined report ---
     report_path = generate_combined_report(
