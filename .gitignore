@@ -157,3 +157,8 @@ bin/
 !.agents/**
 .agents/**/__pycache__/
 .agents/**/*.pyc
+
+# Ignored local test folders
+extracted_app/
+pakmingw_joonix_experimental/
+training_app/

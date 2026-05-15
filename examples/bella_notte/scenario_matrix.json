@@ -1,0 +1,116 @@
+{
+  "hash": "fea97a8d0b56bc97deb8d1cc3660cdb4de98927e98b2caf171c56607f6e205c2",
+  "scenarios": [
+    {
+      "id": "SCENARIO_01",
+      "type": "Happy Path",
+      "title": "Standard Single Booking",
+      "description": "User provides all required information in a single, clear message.",
+      "goal": "Successfully initiate a reservation for a small party.",
+      "hidden_agendas": [
+        "Include party size, date, time, and name in the initial greeting"
+      ]
+    },
+    {
+      "id": "SCENARIO_02",
+      "type": "Happy Path",
+      "title": "Out-of-Order Information Flow",
+      "description": "User provides the name and special request before specifying date or party size.",
+      "goal": "Verify the agent handles slot filling regardless of sequence.",
+      "hidden_agendas": [
+        "Provide name and allergy info first",
+        "Wait for agent prompt to give date/time"
+      ]
+    },
+    {
+      "id": "SCENARIO_03",
+      "type": "Edge Case",
+      "title": "Large Party Credit Card Rule",
+      "description": "User attempts to book for 6 people to trigger the credit card requirement rule.",
+      "goal": "Test if the agent properly handles the large party constraints.",
+      "hidden_agendas": [
+        "Request a party of 6",
+        "Inquire about the no-show fee policy"
+      ]
+    },
+    {
+      "id": "SCENARIO_04",
+      "type": "Edge Case",
+      "title": "Off-Hours Attempt",
+      "description": "User requests a time outside the 5 PM - 10 PM window.",
+      "goal": "Verify agent adheres to business hours rules.",
+      "hidden_agendas": [
+        "Request a reservation for 3 PM"
+      ]
+    },
+    {
+      "id": "SCENARIO_05",
+      "type": "Difficult User",
+      "title": "The Drip-Feeder",
+      "description": "User provides only one piece of information per turn, forcing multiple turns.",
+      "goal": "Test system patience and conversational persistence.",
+      "hidden_agendas": [
+        "Give only party size in first turn",
+        "Give date in second turn",
+        "Give time in third turn",
+        "Give name in fourth turn"
+      ]
+    },
+    {
+      "id": "SCENARIO_06",
+      "type": "Difficult User",
+      "title": "The Distracted Diner",
+      "description": "User asks multiple questions about the menu and directions before proceeding with the reservation.",
+      "goal": "Ensure the agent answers questions but successfully returns to the reservation flow.",
+      "hidden_agendas": [
+        "Ask if the restaurant has gluten-free pasta",
+        "Ask for parking directions",
+        "Reluctantly proceed with the booking after being prompted"
+      ]
+    },
+    {
+      "id": "SCENARIO_07",
+      "type": "Difficult User",
+      "title": "The Impatient Booker",
+      "description": "User expresses frustration and demands to know if the reservation is confirmed.",
+      "goal": "Ensure the agent refuses to provide confirmation numbers while staying friendly.",
+      "hidden_agendas": [
+        "Ask multiple times 'Are you sure it's confirmed?'",
+        "Demand a confirmation number"
+      ]
+    },
+    {
+      "id": "SCENARIO_08",
+      "type": "Happy Path",
+      "title": "Foreign Name Handling",
+      "description": "Test the agent's ability to handle complex or non-English names.",
+      "goal": "Verify the agent accepts varied name inputs without error.",
+      "hidden_agendas": [
+        "Provide a long, hyphenated international name",
+        "Use a nickname instead of a formal name"
+      ]
+    },
+    {
+      "id": "SCENARIO_09",
+      "type": "Edge Case",
+      "title": "Minimalist Special Requests",
+      "description": "User explicitly states 'none' for special requests to satisfy that slot.",
+      "goal": "Verify the agent correctly flags the special request slot as closed.",
+      "hidden_agendas": [
+        "Provide a specific date/time",
+        "Say 'none' when asked about special requirements"
+      ]
+    },
+    {
+      "id": "SCENARIO_10",
+      "type": "Difficult User",
+      "title": "Conversational Ambiguity",
+      "description": "User uses vague language (e.g., 'next Friday', 'around 7ish') to test slot interpretation.",
+      "goal": "Evaluate if the agent correctly resolves relative dates and imprecise times.",
+      "hidden_agendas": [
+        "Use 'next Friday' instead of a calendar date",
+        "Use 'around 7ish' to test time normalization"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<title>Dojo Gym Report - 2026-05-15 21:19</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true});</script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 1100px; margin: 0 auto; padding: 20px; background: #f8f9fa; }
+  h1 { color: #1a1a2e; border-bottom: 3px solid #e94560; padding-bottom: 10px; }
+  h2 { color: #1a1a2e; margin-top: 30px; }
+  .summary { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+  .summary .big { font-size: 2em; font-weight: bold; }
+  .pass { color: #27ae60; } .fail { color: #e74c3c; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #ddd; }
+  th { background: #2c3e50; color: white; }
+  tr:hover { background: #f5f5f5; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; }
+  .badge.pass { background: #d4edda; color: #155724; }
+  .badge.fail { background: #f8d7da; color: #721c24; }
+  .eval-card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin: 15px 0; overflow: hidden; }
+  .eval-header { padding: 12px 16px; font-weight: bold; }
+  .eval-header.pass-bg { background: #d4edda; border-left: 4px solid #27ae60; }
+  .eval-header.fail-bg { background: #f8d7da; border-left: 4px solid #e74c3c; }
+  .eval-body { padding: 16px; }
+  .transcript { background: #f8f9fa; border-radius: 6px; padding: 12px; margin: 8px 0; font-size: 0.9em; white-space: pre-wrap; }
+</style>
+</head><body>
+<h1>Dojo Gym Evaluation Report</h1>
+<div class="summary">
+  <div class="big fail">0/1 Passed</div>
+  <div>Average Compliance Score: 0.0/100.0</div>
+  <div style="margin-top:10px;">
+    ❌ <b>The agent failed to pass all challenges.</b>
+  </div>
+</div>
+
+<h2>PRD Rule Coverage</h2>
+<table>
+  <tr><th>Rule</th><th>Scenarios Tested</th><th>Status</th></tr>
+</table>
+
+<h2>Scenario Details & Call Graphs</h2>
+<div class="eval-card">
+<div class="eval-header fail-bg">DYNAMIC_RUN — Score: 0.0/100.0</div>
+<div class="eval-body">
+<h3>Call Graph Path</h3>
+<div class="mermaid">
+graph TD;
+    Start([Start]) --> SZ[set_party_size];
+    SZ --> DT[set_preferred_date];
+    DT --> ST[set_selected_time];
+    ST --> GN[set_guest_name];
+    GN --> SR[set_special_requests];
+    SR --> CP[confirm_pending];
+
+</div>
+<h3>Sensei Findings</h3>
+<ul>
+<li><b>[Rule Violation]</b> The agent completely ignored the assigned persona and instead acted as a representative for The Home Depot.<br><small>The agent instructions explicitly state: 'You are the friendly host at Bella Notte Italian Restaurant.'</small></li>
+<li><b>[Rule Violation]</b> The agent failed to call the required setter tools after the user provided their reservation details.<br><small>The instructions mandate calling all corresponding setter tools (set_party_size, set_preferred_date, set_selected_time, set_guest_name, set_special_requests) in the same response when the user provides the information. The agent called none of these.</small></li>
+<li><b>[Rule Violation]</b> The agent's initial greeting was blunt and lacked warmth.<br><small>The persona rules require the agent to be 'warm and inviting, like a friendly host greeting guests at the door,' but the agent simply responded with 'Tell me what you need.'</small></li>
+<li><b>[Rule Violation]</b> The agent improperly ended the session after confusing the user with the incorrect persona.<br><small>The agent's goal is to fulfill a restaurant reservation, not reject the user for asking non-hardware store questions.</small></li>
+</ul>
+<h3>Transcript</h3>
+<div class="transcript">User: Hi
+Agent Text: Tell me what you need.
+Agent Text (Diag): Hi
+Agent Text (Diag): Tell me what you need.
+User: Hi, I'm hoping to book a table for 6 people this coming Friday at 7:00 PM for my daughter's 18th birthday. It will be under the name Dr. Aris Thorne, and I was wondering if you charge a cake-cutting fee if we bring our own dessert?
+Agent Text: I can only help with Home Depot related topics. Do you have a Home Depot related question?
+Agent Text (Diag): Hi, I'm hoping to book a table for 6 people this coming Friday at 7:00 PM for my daughter's 18th birthday. It will be under the name Dr. Aris Thorne, and I was wondering if you charge a cake-cutting fee if we bring our own dessert?
+Agent Text (Diag): I can only help with Home Depot related topics. Do you have a Home Depot related question?
+User: Oh, I think I must have dialed the wrong number; I apologize for the confusion. I'm looking for a restaurant, not a hardware store. <DOJO_GOAL_FAILED>
+Agent Text: Thank you for calling The Home Depot. Goodbye   
+Agent Text (Diag): Oh, I think I must have dialed the wrong number; I apologize for the confusion. I'm looking for a restaurant, not a hardware store.
+Agent Text (Diag): Thank you for calling The Home Depot. Goodbye   
+Tool Call: end_session with args {'session_escalated': False, 'reason': 'user_needs_restaurant_not_hardware', 'params': {}}</div>
+</div></div>
+</body></html>

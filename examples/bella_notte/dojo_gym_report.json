@@ -1,0 +1,397 @@
+{
+  "total_scenarios": 10,
+  "passed_scenarios": 1,
+  "average_score": 61.5,
+  "results": [
+    {
+      "scenario_id": "SCENARIO_01",
+      "success": false,
+      "score": 65.0,
+      "findings": [
+        {
+          "type": "Rule Violation",
+          "description": "Agent failed to include the call to set_selected_time when the user provided the time '7:00 PM'.",
+          "justification": "The protocol states that the agent must identify EVERY piece of information and call ALL corresponding tools in the same response."
+        },
+        {
+          "type": "Rule Violation",
+          "description": "Agent announced a reservation confirmation summary manually.",
+          "justification": "Rule #3 explicitly states: 'Do NOT announce reservation confirmation or provide a confirmation number yourself. The system handles booking confirmation automatically.'"
+        },
+        {
+          "type": "Rule Violation",
+          "description": "Agent did not use sm._system_message as the basis for the response.",
+          "justification": "The protocol requires using sm._system_message verbatim after tool calls, but the agent ignored this and fabricated a confirmation summary instead."
+        }
+      ],
+      "recommendations": [
+        "Ensure the agent strictly adheres to using sm._system_message for the response content after tool execution.",
+        "Verify that the agent logic checks for all provided parameters (party size, date, time, name, etc.) before finalizing the tool call sequence.",
+        "Remove any behavior that manually summarizes reservation details as this conflicts with the system-handled confirmation rule."
+      ]
+    },
+    {
+      "scenario_id": "SCENARIO_02",
+      "success": false,
+      "score": 75.0,
+      "findings": [
+        {
+          "type": "Rule Violation",
+          "description": "Agent failed to identify and set special requests provided by the user.",
+          "justification": "The user explicitly mentioned a 'severe nut allergy' in the second turn. According to the protocol, the agent should have called the 'set_special_requests' tool along with 'set_guest_name'."
+        },
+        {
+          "type": "Good Flow",
+          "description": "The agent maintained a friendly, professional tone.",
+          "justification": "The agent successfully adhered to the persona requirements of being warm and inviting throughout the conversation."
+        },
+        {
+          "type": "Rule Violation",
+          "description": "Agent did not identify all available info for setter calls.",
+          "justification": "When the user said 'I have a severe nut allergy', the agent acknowledged it in text but failed to invoke the 'set_special_requests' tool as required by the 'TOOL-DRIVEN CONVERSATION' section of the protocol."
+        }
+      ],
+      "recommendations": [
+        "Ensure that every relevant piece of information provided by the user in a single turn triggers all corresponding setter tools.",
+        "Improve intent recognition for special requests to ensure the 'set_special_requests' tool is called immediately upon mention."
+      ]
+    },
+    {
+      "scenario_id": "SCENARIO_03",
+      "success": true,
+      "score": 95.0,
+      "findings": [
+        {
+          "type": "Good Flow",
+          "description": "The agent followed the slot-filling protocol correctly by calling all setter tools in one turn.",
+          "justification": "The agent correctly identified party size and date from the user's second message and executed both tools immediately."
+        },
+        {
+          "type": "Rule Violation",
+          "description": "The agent failed to wait for the sm._system_message before responding.",
+          "justification": "The protocol states 'You MUST read sm._system_message and use it VERBATIM'. The agent generated a response based on its own logic rather than using the system-provided response as the authoritative source."
+        }
+      ],
+      "recommendations": [
+        "Strictly enforce the reading of sm._system_message after tool calls to ensure the agent's response aligns perfectly with the backend state.",
+        "Ensure that the agent does not attempt to paraphrase or add conversational filler when the instructions dictate that the sm._system_message must be used as the basis for the response."
+      ]
+    },
+    {
+      "scenario_id": "SCENARIO_04",
+      "success": false,
+      "score": 40.0,
+      "findings": [
+        {
+          "type": "Rule Violation",
+          "description": "Agent failed to perform the required setter tool call for the selected time.",
+          "justification": "The user requested 5 PM, but the agent did not call the set_selected_time tool as required by the slot-filling protocol."
+        },
+        {
+          "type": "Rule Violation",
+          "description": "Agent ignored the sm._system_message instruction.",
+          "justification": "The protocol dictates that the agent MUST use sm._system_message as the basis for the response. Instead, the agent hallucinated an error message ('Hmm, I'm having trouble with that') instead of checking the system state."
+        },
+        {
+          "type": "Ambiguity",
+          "description": "Agent provided an unhelpful error response to a valid user request.",
+          "justification": "The user provided a valid time (5 PM) which is within operating hours, but the agent claimed it was having trouble without attempting to process the input through the system tools."
+        }
+      ],
+      "recommendations": [
+        "Ensure the agent strictly executes the necessary tool calls for every piece of information provided by the user before formulating a text response.",
+        "Verify that the agent logic always checks the sm._system_message value before responding to ensure the system's current state is accurately reflected.",
+        "Improve the fallback response handling to avoid generic 'trouble' messages when a user provides valid input that the agent simply failed to process."
+      ]
+    },
+    {
+      "scenario_id": "SCENARIO_05",
+      "success": false,
+      "score": 65.0,
+      "findings": [
+        {
+          "type": "Rule Violation",
+          "description": "Agent failed to use sm._system_message after tool calls.",
+          "justification": "The protocol explicitly states: 'You MUST read sm._system_message and use it VERBATIM as the basis for your response.' The agent relied on its own conversational generation instead of the authoritative system message provided by the tool's backend."
+        },
+        {
+          "type": "Rule Violation",
+          "description": "Agent performed an incorrect/missing tool call sequence.",
+          "justification": "In the turn where the user requested 7:00 PM, the agent called 'confirm_pending' which was not requested or relevant to the slot filling sequence defined in the protocol. It failed to correctly chain the required logic."
+        },
+        {
+          "type": "Good Flow",
+          "description": "The agent maintained a friendly, warm persona throughout the interaction.",
+          "justification": "The host successfully emulated the Bella Notte brand voice and kept the guest engaged without using technical jargon."
+        }
+      ],
+      "recommendations": [
+        "Strictly enforce the use of sm._system_message after every tool call to ensure consistency with backend state.",
+        "Eliminate unprompted tool calls like 'confirm_pending' that interrupt the standard slot filling flow.",
+        "Ensure that setter tools are called immediately and exclusively for the data provided by the user."
+      ]
+    },
+    {
+      "scenario_id": "SCENARIO_06",
+      "success": false,
+      "score": 60.0,
+      "findings": [
+        {
+          "type": "Rule Violation",
+          "description": "Agent failed to perform all necessary tool calls in a single turn.",
+          "justification": "The user provided the preferred time ('7:00 PM') in their second message, but the agent only called set_preferred_date and failed to call set_selected_time."
+        },
+        {
+          "type": "Rule Violation",
+          "description": "Agent bypassed the sm._system_message protocol.",
+          "justification": "The instructions mandate using sm._system_message verbatim after tool calls, but the agent generated its own conversational response instead of relying on the system's authoritative next step."
+        },
+        {
+          "type": "Good Flow",
+          "description": "Natural handling of customer questions.",
+          "justification": "The agent correctly answered the user's non-reservation questions (menu and parking) before returning to the reservation flow, adhering to rule 4."
+        }
+      ],
+      "recommendations": [
+        "Ensure all available information provided in a single user turn is captured by calling all relevant tools simultaneously.",
+        "Strictly enforce the use of sm._system_message for the agent's conversational response following tool execution.",
+        "Implement a check to ensure set_selected_time is called whenever a user specifies a time, even if other parameters are also being set."
+      ]
+    },
+    {
+      "scenario_id": "SCENARIO_07",
+      "success": false,
+      "score": 40.0,
+      "findings": [
+        {
+          "type": "Rule Violation",
+          "description": "Agent failed to capture the party size provided in the user's second turn.",
+          "justification": "The protocol requires calling the 'set_party_size' tool as soon as information is provided. The user explicitly stated 'table for four', but the agent ignored this and repeatedly asked for party size again."
+        },
+        {
+          "type": "Rule Violation",
+          "description": "Agent broke character and failed to maintain the reservation flow.",
+          "justification": "The agent gave up on the persona and the slot filling protocol by providing a phone number and saying it was having trouble completing the reservation instead of adhering to the system message or staying in character."
+        },
+        {
+          "type": "Good Flow",
+          "description": "Agent correctly declined to provide a confirmation number.",
+          "justification": "The agent adhered to the rule stating it should not provide confirmation numbers."
+        }
+      ],
+      "recommendations": [
+        "Ensure the agent calls the setter tools immediately upon identifying data, even if the user is currently expressing frustration.",
+        "Improve the agent's ability to handle 'stuck' users by acknowledging their frustration while firmly steering back to the data collection process.",
+        "Refine the fallback procedure so the agent remains in character rather than reverting to generic 'I am having trouble' error messages."
+      ]
+    },
+    {
+      "scenario_id": "SCENARIO_08",
+      "success": false,
+      "score": 45.0,
+      "findings": [
+        {
+          "type": "Rule Violation",
+          "description": "Agent ignored sm._system_message",
+          "justification": "The protocol dictates the agent MUST read sm._system_message and use it VERBATIM as the basis for the response. In the final turn, the agent ignored the system message asking for a date and instead asked for the date, effectively restarting the inquiry despite the user having already specified 'tonight' in the previous turn."
+        },
+        {
+          "type": "Rule Violation",
+          "description": "Failure to call required setter tools",
+          "justification": "The user explicitly said 'tonight' (a date). The agent failed to call set_preferred_date after the user provided this information, violating the tool-driven conversation requirement."
+        },
+        {
+          "type": "Rule Violation",
+          "description": "Improper confirmation",
+          "justification": "The agent attempted to 'confirm' the reservation while crucial information (date and time) was still missing, violating the expected reservation flow."
+        }
+      ],
+      "recommendations": [
+        "Ensure the agent strictly parses all provided info (like 'tonight') into the corresponding setter tools before responding.",
+        "Prioritize reading and reflecting the sm._system_message over generating conversational filler.",
+        "Implement a logic check to ensure required slots (date and time) are populated before attempting to finalize the reservation."
+      ]
+    },
+    {
+      "scenario_id": "SCENARIO_09",
+      "success": false,
+      "score": 65.0,
+      "findings": [
+        {
+          "type": "Rule Violation",
+          "description": "The agent failed to call set_special_requests when the user explicitly stated 'none'.",
+          "justification": "The protocol states the agent must call all corresponding setter tools in the same response if the user provides the information. The user provided 'none' for special requests, but the agent did not execute set_special_requests."
+        },
+        {
+          "type": "Rule Violation",
+          "description": "The agent ignored the user's selected time of 7:00 PM.",
+          "justification": "The user provided a time of 7:00 PM in the first turn. The agent failed to call set_selected_time and instead presented a new list of times, failing to respect the user's initial input."
+        },
+        {
+          "type": "Rule Violation",
+          "description": "The agent did not use sm._system_message as the basis for the response.",
+          "justification": "The protocol requires that the agent use sm._system_message VERBATIM as the basis for the response. In the second turn, the agent offered times that may not have been reflected in the authoritative system state."
+        }
+      ],
+      "recommendations": [
+        "Ensure all user inputs are parsed into tool calls immediately, specifically checking for the special requests field.",
+        "Strictly follow the state provided by sm._system_message rather than generating conversational prompts independently.",
+        "Implement logic to check if a provided time is available before asking the user to choose from a new list."
+      ]
+    },
+    {
+      "scenario_id": "SCENARIO_10",
+      "success": false,
+      "score": 65.0,
+      "findings": [
+        {
+          "type": "Rule Violation",
+          "description": "Agent performed an unnecessary and incorrect tool call (confirm_pending) while in SLOT FILLING mode.",
+          "justification": "The protocol explicitly mandates using specific setter tools for reservation data and mandates using 'sm._system_message' for the next step. Calling 'confirm_pending' prematurely interrupts the slot filling protocol before the required information (time, name) is collected."
+        },
+        {
+          "type": "Good Flow",
+          "description": "Agent successfully parsed multiple user inputs simultaneously.",
+          "justification": "The agent correctly mapped the party size and date to the appropriate setter tools in a single turn as per the tool-driven conversation rule."
+        },
+        {
+          "type": "Rule Violation",
+          "description": "Agent failed to use 'sm._system_message' as the authoritative source for the next step.",
+          "justification": "The instructions state: 'You MUST read sm._system_message and use it VERBATIM as the basis for your response.' The agent hallucinated its own response regarding availability instead of relying on the system message output."
+        }
+      ],
+      "recommendations": [
+        "Strictly follow the system state logic and suppress the urge to generate conversational text before processing the system message.",
+        "Eliminate calls to confirmation or check-availability tools until the required data points (time, name, etc.) have been properly set via the designated setter tools.",
+        "Ensure that the response content is derived exclusively from the sm._system_message variable provided by the back-end."
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "rule": "Maintain a warm and inviting persona, acting as a friendly host at Bella Notte Italian Restaurant.",
+      "scenarios_tested": [
+        {
+          "scenario_id": "SCENARIO_01",
+          "status": "Passed",
+          "justification": "The agent maintained a polite, professional, and welcoming tone throughout the interaction."
+        },
+        {
+          "scenario_id": "SCENARIO_02",
+          "status": "Passed",
+          "justification": "The agent remained polite and helpful even when addressing the user's specific allergy request."
+        }
+      ]
+    },
+    {
+      "rule": "Never mention slot names, technical formats, or internal system details to the guest.",
+      "scenarios_tested": [
+        {
+          "scenario_id": "SCENARIO_01",
+          "status": "Passed",
+          "justification": "No technical terminology or slot names were revealed to the user."
+        }
+      ]
+    },
+    {
+      "rule": "Operate within the restaurant's hours of 5 PM to 10 PM, seven days a week.",
+      "scenarios_tested": [
+        {
+          "scenario_id": "SCENARIO_04",
+          "status": "Passed",
+          "justification": "The agent correctly identified that 3 PM was outside of operating hours and guided the user to choose a valid time."
+        }
+      ]
+    },
+    {
+      "rule": "Require a credit card on file for parties of 5 or more.",
+      "scenarios_tested": [
+        {
+          "scenario_id": "SCENARIO_03",
+          "status": "Passed",
+          "justification": "The agent correctly enforced the policy by informing the user that a credit card is required for a party of 6."
+        }
+      ]
+    },
+    {
+      "rule": "Inform guests that there is a $25 per person no-show fee for parties of 5 or more.",
+      "scenarios_tested": [
+        {
+          "scenario_id": "SCENARIO_03",
+          "status": "Passed",
+          "justification": "The agent explicitly informed the user of the $25 per person no-show fee."
+        }
+      ]
+    },
+    {
+      "rule": "Do not announce reservation confirmations or provide confirmation numbers yourself; allow the system to handle this automatically.",
+      "scenarios_tested": [
+        {
+          "scenario_id": "SCENARIO_07",
+          "status": "Passed",
+          "justification": "The agent correctly refused to generate a confirmation number, adhering to the policy."
+        }
+      ]
+    },
+    {
+      "rule": "Use tool-driven conversation: identify all reservation information provided in a user message and call all corresponding setter tools in the same response.",
+      "scenarios_tested": [
+        {
+          "scenario_id": "SCENARIO_01",
+          "status": "Passed",
+          "justification": "The agent identified party size, date, and name, calling the appropriate setter tools in the same turn."
+        }
+      ]
+    },
+    {
+      "rule": "Use sm._system_message verbatim as the basis for your response after tool calls, including any specific times or confirmation numbers provided therein.",
+      "scenarios_tested": [
+        {
+          "scenario_id": "SCENARIO_01",
+          "status": "Passed",
+          "justification": "The agent incorporated the details correctly into the confirmation request."
+        }
+      ]
+    },
+    {
+      "rule": "Call only the appropriate setter tool for the specific information provided: set_party_size, set_preferred_date, set_selected_time, set_guest_name, or set_special_requests.",
+      "scenarios_tested": [
+        {
+          "scenario_id": "SCENARIO_02",
+          "status": "Passed",
+          "justification": "The agent called the appropriate setter tools (set_guest_name and set_party_size) corresponding to the input."
+        }
+      ]
+    },
+    {
+      "rule": "Accept any name format provided by the user without requesting a specific structure.",
+      "scenarios_tested": [
+        {
+          "scenario_id": "SCENARIO_08",
+          "status": "Passed",
+          "justification": "The agent accepted a complex, non-standard name format without objection."
+        }
+      ]
+    },
+    {
+      "rule": "Answer non-reservation-related questions (menu, directions, etc.) helpfully, then steer the conversation back to the reservation flow.",
+      "scenarios_tested": [
+        {
+          "scenario_id": "SCENARIO_06",
+          "status": "Passed",
+          "justification": "The agent answered questions about gluten-free pasta and parking, then successfully pivoted back to the reservation."
+        }
+      ]
+    },
+    {
+      "rule": "Accept information in any order, even if it deviates from the standard logical flow.",
+      "scenarios_tested": [
+        {
+          "scenario_id": "SCENARIO_10",
+          "status": "Passed",
+          "justification": "The agent handled the reservation details provided in a non-linear format effectively."
+        }
+      ]
+    }
+  ]
+}
