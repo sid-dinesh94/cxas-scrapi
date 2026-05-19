@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 import pydantic
 import yaml
+from google import genai
 from pydantic import BaseModel
 
 from cxas_scrapi.core.agents import Agents
@@ -1401,26 +1402,82 @@ def evaluate_expectations(
     model_name: str,
     trace: List[str],
     expectations: List[str],
+    audio_paths: Optional[Dict[int, str]] = None,
 ) -> List[ExpectationResult]:
     """Evaluates expectations against the conversation trace using an LLM.
 
     Args:
-        genai_client: The GenAI client instance.
+        gemini_client: The GenAI client instance.
         model_name: The Gemini model name to use.
         trace: A list of strings representing the conversation trace.
         expectations: A list of strings representing the expectations.
+        audio_paths: Optional dictionary mapping simulation turn numbers to
+          audio WAV file paths.
 
     Returns:
         A list of ExpectationResult objects.
     """
+    if audio_paths:
+        audio_instr = (
+            "If audio files are provided interleaving the agent turns, you "
+            "must listen carefully to each audio track. Verify that the "
+            "audio semantics, completion, and phrasing match the "
+            "transcribed text. If there is a mismatch, cut-off, "
+            "silence, or discrepancy, fail the expectation and "
+            "explain the mismatch."
+        )
+        base_prompt = llm_user_prompts.EVALUATE_EXPECTATIONS_PROMPT.replace(
+            "{audio_instructions}", audio_instr
+        )
+        prompt_text = base_prompt.replace(
+            "{expectations}", json.dumps(expectations, indent=2)
+        )
+        prompt_text = prompt_text.replace(
+            "{trace}",
+            "Refer to the conversation history and interleaved raw "
+            "audio files below.",
+        )
 
-    full_trace_str = "\n\n".join(trace)
-    prompt = llm_user_prompts.EVALUATE_EXPECTATIONS_PROMPT.replace(
-        "{trace}", full_trace_str
-    )
-    prompt = prompt.replace(
-        "{expectations}", json.dumps(expectations, indent=2)
-    )
+        contents = [prompt_text, "\n\nCONVERSATION TRACE AND RAW AUDIO:\n"]
+
+        for i, item in enumerate(trace):
+            contents.append(f"\n{item}\n")
+
+            # Interleave audio for agent turns (odd indices of detailed_trace)
+            if i % 2 == 1:
+                sim_turn = (i - 1) // 2
+                audio_path = audio_paths.get(sim_turn)
+                if audio_path and os.path.exists(audio_path):
+                    try:
+                        with open(audio_path, "rb") as f:
+                            contents.append(
+                                genai.types.Part.from_bytes(
+                                    data=f.read(), mime_type="audio/wav"
+                                )
+                            )
+                            logger.info(
+                                "Interleaved audio %s for turn %s",
+                                audio_path,
+                                sim_turn,
+                            )
+                    except Exception as e:
+                        logger.error(
+                            "Failed to read or wrap audio file %s: %s",
+                            audio_path,
+                            e,
+                        )
+        prompt = contents
+    else:
+        full_trace_str = "\n\n".join(trace)
+        prompt = llm_user_prompts.EVALUATE_EXPECTATIONS_PROMPT.replace(
+            "{audio_instructions}", ""
+        )
+        prompt = prompt.replace(
+            "{trace}", full_trace_str
+        )
+        prompt = prompt.replace(
+            "{expectations}", json.dumps(expectations, indent=2)
+        )
 
     try:
         output: ExpectationOutput = gemini_client.generate(

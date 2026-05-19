@@ -51,7 +51,6 @@ from cxas_scrapi.utils.eval_utils import EvalUtils
 logger = logging.getLogger(__name__)
 
 
-
 def export_eval(args: argparse.Namespace) -> None:
     """Handles the 'export' command."""
 
@@ -450,9 +449,6 @@ def run_eval(args: argparse.Namespace) -> None:  # noqa: C901
         sys.exit(1)
 
 
-
-
-
 def combined_evals_report_cmd(args: argparse.Namespace) -> None:
     """Handles the 'evals report' command."""
     import os  # noqa: PLC0415
@@ -461,8 +457,10 @@ def combined_evals_report_cmd(args: argparse.Namespace) -> None:
         generate_combined_report_from_dir,
     )
 
-    output_path = args.gcs_path or args.output or os.path.join(
-        args.output_dir, "combined_report.html"
+    output_path = (
+        args.gcs_path
+        or args.output
+        or os.path.join(args.output_dir, "combined_report.html")
     )
 
     include_list = args.include.split(",") if args.include else []
@@ -845,9 +843,7 @@ def get_parser() -> argparse.ArgumentParser:
     )
 
     # Parser for 'migrate'
-    parser_migrate = subparsers.add_parser(
-        "migrate", help="Migration tools."
-    )
+    parser_migrate = subparsers.add_parser("migrate", help="Migration tools.")
     migrate_subparsers = parser_migrate.add_subparsers(
         title="Migration Commands", dest="migrate_command", required=True
     )

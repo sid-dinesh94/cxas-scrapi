@@ -2,7 +2,7 @@
   "gcp_project_id": "ces-deployment-dev",
   "location": "us",
   "app_name": "bella-notte",
-  "deployed_app_id": "1f7b8d42-b9ef-411e-ade2-e0680ada5390",
+  "deployed_app_id": "0fcf5c5d-d689-4558-828c-66e0ea0af1b2",
   "app_dir": "cxas_app/",
   "model": "gemini-3-flash",
   "modality": "text",

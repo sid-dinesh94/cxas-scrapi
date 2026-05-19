@@ -15,7 +15,7 @@
 import asyncio
 import logging
 import random
-from typing import Any, Optional
+from typing import Any, List, Optional, Union
 
 from google import genai
 
@@ -57,24 +57,56 @@ class GeminiGenerate:
         )
         self.semaphore = asyncio.Semaphore(max_concurrent_requests)
 
+    def _build_contents(
+        self,
+        prompt: Union[str, List[Any]],
+        audio_path: Optional[str] = None,
+        audio_bytes: Optional[bytes] = None,
+    ) -> List[Any]:
+        """Helper to construct contents for the model including audio."""
+        contents = []
+        if isinstance(prompt, list):
+            contents.extend(prompt)
+        else:
+            contents.append(prompt)
+
+        if audio_bytes:
+            contents.append(
+                genai.types.Part.from_bytes(
+                    data=audio_bytes, mime_type="audio/wav"
+                )
+            )
+        elif audio_path:
+            with open(audio_path, "rb") as f:
+                contents.append(
+                    genai.types.Part.from_bytes(
+                        data=f.read(), mime_type="audio/wav"
+                    )
+                )
+        return contents
+
     def generate(
         self,
-        prompt: str,
+        prompt: Union[str, List[Any]],
         system_prompt: Optional[str] = None,
         model_name: Optional[str] = None,
         response_mime_type: Optional[str] = None,
         response_schema: Optional[Any] = None,
+        audio_path: Optional[str] = None,
+        audio_bytes: Optional[bytes] = None,
     ) -> Optional[Any]:
         """Generates content using the Gemini model.
 
         Args:
-            prompt: The user prompt.
+            prompt: The user prompt (can be a list for multi-part contents).
             system_prompt: Optional system prompt/instruction.
             model_name: Optional override for the model name.
             response_mime_type: Optional MIME type for the response (e.g.,
               'application/json').
             response_schema: Optional Pydantic model or schema for structured
               output.
+            audio_path: Optional path to an audio file.
+            audio_bytes: Optional raw audio bytes.
 
         Returns:
             The generated text response or parsed object, or None on failure.
@@ -93,9 +125,11 @@ class GeminiGenerate:
         if config_args:
             config = genai.types.GenerateContentConfig(**config_args)
 
+        contents = self._build_contents(prompt, audio_path, audio_bytes)
+
         try:
             response = self.client.models.generate_content(
-                model=target_model, contents=prompt, config=config
+                model=target_model, contents=contents, config=config
             )
 
             if response_mime_type == "application/json" and response_schema:
@@ -107,13 +141,15 @@ class GeminiGenerate:
 
     async def generate_async(
         self,
-        prompt: str,
+        prompt: Union[str, List[Any]],
         system_prompt: Optional[str] = None,
         model_name: Optional[str] = None,
         response_mime_type: Optional[str] = None,
         response_schema: Optional[Any] = None,
         max_retries: int = 5,
         base_delay_seconds: int = 10,
+        audio_path: Optional[str] = None,
+        audio_bytes: Optional[bytes] = None,
     ) -> Optional[Any]:
         """Generates content asynchronously using the Gemini model.
 
@@ -127,6 +163,8 @@ class GeminiGenerate:
               output.
             max_retries: Maximum number of retries for transient errors.
             base_delay_seconds: Base delay for exponential backoff.
+            audio_path: Optional path to an audio file.
+            audio_bytes: Optional raw audio bytes.
 
         Returns:
             The generated text response or parsed object, or None on failure.
@@ -145,12 +183,14 @@ class GeminiGenerate:
         if config_args:
             config = genai.types.GenerateContentConfig(**config_args)
 
+        contents = self._build_contents(prompt, audio_path, audio_bytes)
+
         for attempt in range(max_retries):
             try:
                 # ACQUIRE SEMAPHORE: Wait if too many requests are running
                 async with self.semaphore:
                     response = await self.client.aio.models.generate_content(
-                        model=target_model, contents=prompt, config=config
+                        model=target_model, contents=contents, config=config
                     )
 
                 if response_mime_type == "application/json" and response_schema:
