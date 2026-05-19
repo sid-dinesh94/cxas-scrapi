@@ -31,25 +31,19 @@ import os
 import sys
 import time
 import uuid
-import yaml
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import pandas as pd
-from google import genai
+import pydantic
+import yaml
+from config import get_project_path, load_app_name
 
-from cxas_scrapi.core.sessions import Sessions
-from cxas_scrapi.core.apps import Apps
 from cxas_scrapi.evals.simulation_evals import (
     LLMUserConversation,
     SimulationEvals,
     StepStatus,
 )
-from cxas_scrapi.prompts import llm_user_prompts
-
-
-from config import load_app_name, get_project_path
 
 USER_AGENT_EXTENSION = "skill/cxas-agent-foundry/scrapi-sim-runner"
 
@@ -117,6 +111,7 @@ class EnhancedSimRunner(SimulationEvals):
         session_id: Optional[str] = None,
         console_logging: bool = True,
         modality: str = "text",
+        evaluate_expectations_with_audio_tokens: bool = False,
     ) -> LLMUserConversation:
         """Run a simulated conversation with variable injection."""
         if session_id is None:
@@ -127,6 +122,9 @@ class EnhancedSimRunner(SimulationEvals):
             genai_model=model,
             test_case=test_case,
         )
+        # Ensure audio paths tracking matches parent class logic
+        eval_conv.agent_audio_paths = {}
+        current_sim_turn = 0
 
         session_params = test_case.get("session_parameters", {})
 
@@ -143,77 +141,128 @@ class EnhancedSimRunner(SimulationEvals):
         detailed_trace = [f"User: {user_utterance}"]
 
         first_turn = True
-        while user_utterance:
-            for attempt in range(self.max_retries):
-                try:
-                    kwargs = {
-                        "session_id": session_id,
-                        "text": user_utterance,
-                        "modality": modality,
-                    }
-                    # Inject variables on first turn only
-                    if first_turn and session_params:
-                        kwargs["variables"] = session_params
-                        first_turn = False
-                    else:
-                        first_turn = False
+        try:
+            while user_utterance:
+                for attempt in range(self.max_retries):
+                    try:
+                        kwargs = {
+                            "session_id": session_id,
+                            "text": user_utterance,
+                            "modality": modality,
+                            "turn_num": current_sim_turn,
+                            "evaluate_expectations_with_audio_tokens": (
+                                evaluate_expectations_with_audio_tokens
+                            ),
+                        }
+                        # Inject variables on first turn only
+                        if first_turn and session_params:
+                            kwargs["variables"] = session_params
+                            first_turn = False
+                        else:
+                            first_turn = False
 
-                    response = self.sessions_client.run(**kwargs)
+                        response = self.sessions_client.run(**kwargs)
+                        break
+                    except Exception as e:
+                        if attempt == self.max_retries - 1:
+                            raise e
+                        if console_logging:
+                            print(f"  Retry {attempt+1}: {e}")
+                        time.sleep(self.retry_delay_base ** attempt)
+
+                if not response:
                     break
-                except Exception as e:
-                    if attempt == self.max_retries - 1:
-                        raise e
-                    if console_logging:
-                        print(f"  Retry {attempt+1}: {e}")
-                    time.sleep(self.retry_delay_base ** attempt)
 
-            if not response:
-                break
+                # Extract and save the agent turn audio WAV if present in response
+                if response and getattr(response, "agent_audio_paths", None):
+                    audio_path = response.agent_audio_paths.get(0)
+                    if audio_path:
+                        eval_conv.agent_audio_paths[current_sim_turn] = audio_path
+
+                if console_logging:
+                    self.sessions_client.parse_result(response)
+
+                agent_text, trace_chunks, session_ended = self._parse_agent_response(response)
+                detailed_trace.append("\n".join(trace_chunks))
+
+                if session_ended:
+                    if console_logging:
+                        print("\nSession ended by agent (end_session).")
+
+                    # 1. Determine if the termination corresponds to an escalation / transfer
+                    is_escalation = any(
+                        "escalat" in p.step.success_criteria.lower() or "transfer" in p.step.success_criteria.lower()
+                        for p in eval_conv.steps_progress if p.status != StepStatus.COMPLETED
+                    )
+
+                    # 2. Filter uncompleted steps
+                    uncompleted_steps = [p for p in eval_conv.steps_progress if p.status != StepStatus.COMPLETED]
+
+                    if uncompleted_steps:
+                        if is_escalation:
+                            # Complete the escalation/transfer step
+                            for prog in uncompleted_steps:
+                                criteria = prog.step.success_criteria.lower()
+                                if any(k in criteria for k in ["escalat", "transfer", "being transferred"]):
+                                    prog.status = StepStatus.COMPLETED
+                                    prog.justification = "Session escalated/transferred successfully — matches escalation criteria."
+                        else:
+                            # Complete the last uncompleted step if it matches successful session close terminal criteria
+                            last_prog = uncompleted_steps[-1]
+                            criteria = last_prog.step.success_criteria.lower()
+                            if any(k in criteria for k in ["end", "close", "thank", "session successfully"]):
+                                last_prog.status = StepStatus.COMPLETED
+                                last_prog.justification = "Session ended successfully via end_session — matches terminal criteria."
+                    break
+
+                result = eval_conv.next_user_utterance(agent_text)
+                if isinstance(result, tuple):
+                    user_utterance, _ = result
+                else:
+                    user_utterance = result
+                if user_utterance:
+                    detailed_trace.append(f"User: {user_utterance}")
+
+                current_sim_turn += 1
 
             if console_logging:
-                self.sessions_client.parse_result(response)
+                print("\n--- Conversation Complete ---")
+                for step_prog in eval_conv.steps_progress:
+                    status_icon = "✓" if step_prog.status == StepStatus.COMPLETED else "✗"
+                    print(f"  {status_icon} {step_prog.step.goal[:80]} → {step_prog.status.value}")
 
-            agent_text, trace_chunks, session_ended = self._parse_agent_response(response)
-            detailed_trace.append("\n".join(trace_chunks))
+            # Evaluate expectations
+            self._evaluate_expectations(
+                eval_conv,
+                detailed_trace,
+                model,
+                console_logging,
+                evaluate_expectations_with_audio_tokens=(
+                    evaluate_expectations_with_audio_tokens
+                ),
+            )
 
-            if session_ended:
-                if console_logging:
-                    print("\nSession ended by agent (end_session).")
-                # Mark current step as completed if the session ending
-                # is a valid success (escalation evals)
-                for prog in eval_conv.steps_progress:
-                    criteria = prog.step.success_criteria.lower()
-                    if prog.status != StepStatus.COMPLETED and (
-                        "escalat" in criteria
-                        or "transfer" in criteria
-                        or "being transferred" in criteria
-                    ):
-                        prog.status = StepStatus.COMPLETED
-                        prog.justification = "Agent ended session via escalation/transfer — matches success criteria."
-                break
+            # Attach extra data for reporting
+            eval_conv._session_id = session_id
+            eval_conv._detailed_trace = detailed_trace
 
-            result = eval_conv.next_user_utterance(agent_text)
-            if isinstance(result, tuple):
-                user_utterance, _ = result
-            else:
-                user_utterance = result
-            if user_utterance:
-                detailed_trace.append(f"User: {user_utterance}")
+            return eval_conv
+        finally:
+            import shutil
+            shutil.rmtree(f"/tmp/scrapi_evals/{session_id}", ignore_errors=True)
 
-        if console_logging:
-            print("\n--- Conversation Complete ---")
-            for step_prog in eval_conv.steps_progress:
-                status_icon = "✓" if step_prog.status == StepStatus.COMPLETED else "✗"
-                print(f"  {status_icon} {step_prog.step.goal[:80]} → {step_prog.status.value}")
 
-        # Evaluate expectations
-        self._evaluate_expectations(eval_conv, detailed_trace, model, console_logging)
 
-        # Attach extra data for reporting
-        eval_conv._session_id = session_id
-        eval_conv._detailed_trace = detailed_trace
 
-        return eval_conv
+
+
+
+
+
+
+
+
+
 
 
 def _parse_priorities(priority):
@@ -221,6 +270,7 @@ def _parse_priorities(priority):
     if not priority:
         return None
     return {p.strip().upper() for p in priority.split(",") if p.strip()}
+
 
 
 def filter_evals(evals, priority=None, tag=None):
@@ -485,7 +535,7 @@ function jumpToRun(evalName, runIdx) {{
         cls = "pass-bg" if s["pass"] == s["total"] else "fail-bg"
         html += f'<div class="eval-card" id="eval-{name}">\n'
         html += f'<div class="eval-header {cls}">{_escape(name)} <span>{score}</span></div>\n'
-        html += f'<div class="eval-body">\n'
+        html += '<div class="eval-body">\n'
 
         for r in s["runs"]:
             run_cls = "pass" if r.get("passed") else "fail"
@@ -504,7 +554,7 @@ function jumpToRun(evalName, runIdx) {{
             # Session parameters
             sparams = r.get("session_parameters", {})
             if sparams:
-                html += f'<details class="tool-details"><summary class="tool-summary">&#9881; <b>Session Parameters</b></summary>'
+                html += '<details class="tool-details"><summary class="tool-summary">&#9881; <b>Session Parameters</b></summary>'
                 html += f'<pre class="tool-data">{_escape(json.dumps(sparams, indent=2))}</pre></details>\n'
 
             if "error" in r:
@@ -598,7 +648,7 @@ function jumpToRun(evalName, runIdx) {{
                         elif kind == "agent_transfer":
                             html += f'<div class="tool-details" style="background:#e8f4fd;border-left-color:#2980b9;"><div class="tool-summary" style="color:#2471a3;">&#10132; <b>Agent Transfer:</b> {_escape(item[1])}</div></div>\n'
                         elif kind == "custom_payload":
-                            html += f'<details class="tool-details" style="background:#fff8e1;border-left-color:#f39c12;"><summary class="tool-summary" style="color:#b7950b;">&#128230; <b>Custom Payload</b></summary>'
+                            html += '<details class="tool-details" style="background:#fff8e1;border-left-color:#f39c12;"><summary class="tool-summary" style="color:#b7950b;">&#128230; <b>Custom Payload</b></summary>'
                             html += f'<pre class="tool-data">{_escape(item[1])}</pre></details>\n'
                         else:
                             html += f'<div class="system">{_escape(item[1])}</div>\n'
@@ -626,7 +676,16 @@ function jumpToRun(evalName, runIdx) {{
     print(f"Report saved locally to: {output_path}")
 
 
-def _run_single_eval(app_name, tc, run_idx, runs, model, modality, verbose):
+def _run_single_eval(
+    app_name,
+    tc,
+    run_idx,
+    runs,
+    model,
+    modality,
+    verbose,
+    evaluate_expectations_with_audio_tokens=False,
+):
     """Run a single eval iteration. Designed to be called from a thread pool."""
     name = tc["name"]
     label = f"{name} (run {run_idx + 1}/{runs})"
@@ -641,6 +700,9 @@ def _run_single_eval(app_name, tc, run_idx, runs, model, modality, verbose):
             model=model,
             console_logging=verbose,
             modality=modality,
+            evaluate_expectations_with_audio_tokens=(
+                evaluate_expectations_with_audio_tokens
+            ),
         )
         duration_s = round(_time.time() - _start, 1)
 
@@ -701,7 +763,13 @@ def _run_single_eval(app_name, tc, run_idx, runs, model, modality, verbose):
 def cmd_run(args):
     """Run sim evals against the live agent."""
     data = load_yaml()
-    app_name = get_app_name()
+    if args.config:
+        with open(args.config) as f:
+            cfg = json.load(f)
+        app_name = f"projects/{cfg['gcp_project_id']}/locations/{cfg['location']}/apps/{cfg['deployed_app_id']}"
+    else:
+        app_name = get_app_name()
+
 
     templates = load_sim_templates()
 
@@ -775,7 +843,18 @@ def cmd_run(args):
     if parallel <= 1:
         # Sequential execution
         for tc, run_idx in jobs:
-            result = _run_single_eval(app_name, tc, run_idx, runs, model, modality, args.verbose)
+            result = _run_single_eval(
+                app_name,
+                tc,
+                run_idx,
+                runs,
+                model,
+                modality,
+                args.verbose,
+                evaluate_expectations_with_audio_tokens=(
+                    args.evaluate_expectations_with_audio_tokens
+                ),
+            )
             all_results.append(result)
     else:
         # Parallel execution
@@ -783,8 +862,15 @@ def cmd_run(args):
             futures = {}
             for tc, run_idx in jobs:
                 future = executor.submit(
-                    _run_single_eval, app_name, tc, run_idx, runs,
-                    model, modality, False  # disable verbose in parallel mode
+                    _run_single_eval,
+                    app_name,
+                    tc,
+                    run_idx,
+                    runs,
+                    model,
+                    modality,
+                    False,  # disable verbose in parallel mode
+                    args.evaluate_expectations_with_audio_tokens,
                 )
                 futures[future] = (tc["name"], run_idx)
 
@@ -849,7 +935,252 @@ def cmd_run(args):
     print(f"Report:  {report_path}")
 
 
+def cmd_run_dynamic(args):
+    """Run dynamic Dojo sim against live agent."""
+    if args.config:
+        with open(args.config) as f:
+            cfg = json.load(f)
+        app_name = f"projects/{cfg['gcp_project_id']}/locations/{cfg['location']}/apps/{cfg['deployed_app_id']}"
+    else:
+        app_name = get_app_name()
+
+    model = args.model or _DEFAULT_MODEL
+    print(f"Running dynamic Dojo sim against {app_name}")
+
+    sim = EnhancedSimRunner(app_name=app_name)
+    persona_data = sim._generate_dojo_persona(args.doc, model)
+
+    if not persona_data:
+        print("Failed to generate persona. Aborting.")
+        return
+
+    print(f"\nGenerated Persona: {persona_data['persona']}")
+    print(f"Goal: {persona_data['goal']}")
+
+    conv = sim.simulate_dynamic_conversation(
+        persona_prompt=f"Persona: {persona_data['persona']}\nGoal: {persona_data['goal']}",
+        model=model,
+        console_logging=args.verbose,
+    )
+
+    # Sensei Post-Eval
+    print("\nEvaluating conversation with Sensei...")
+    with open(args.doc, "r") as f:
+        instructions = f.read()
+
+    transcript_str = "\n".join(conv)
+
+    sensei_prompt = f"""You are an advanced AI quality auditor (Sensei) evaluating a conversation between a user (Dojo Agent) and a restaurant host agent.
+Your task is to evaluate whether the host agent followed the rules and protocol specified in the instructions.
+
+Agent Instructions:
+{instructions}
+
+Conversation Transcript:
+{transcript_str}
+
+
+Evaluate the conversation and provide structured feedback. Identify any rule violations, incorrect tool calls, or poor conversational flow.
+Return the result as a JSON object matching this schema:
+{{
+  "success": true/false, 
+  "score": 0.0-100.0, 
+  "findings": [
+    {{
+      "type": "Rule Violation" / "Ambiguity" / "Good Flow",
+      "description": "Detail of what happened",
+      "justification": "Why this is a finding based on instructions"
+    }}
+  ],
+  "recommendations": ["List of actionable improvements for the agent prompt or instructions"]
+}}
+"""
+
+    try:
+        class SenseiOutput(pydantic.BaseModel):
+            class Finding(pydantic.BaseModel):
+                type: str
+                description: str
+                justification: str
+            success: bool
+            score: float
+            findings: List[Finding]
+            recommendations: List[str]
+
+        output: SenseiOutput = sim.genai_client.generate(
+            prompt=sensei_prompt,
+            model_name=model,
+            response_mime_type="application/json",
+            response_schema=SenseiOutput,
+        )
+
+        if output:
+            print(f"\nSensei Score: {output.score}/100.0")
+            print(f"Success: {output.success}")
+            print("\nFindings:")
+            for f in output.findings:
+                print(f"  - [{f.type}] {f.description}")
+                print(f"    Justification: {f.justification}")
+            print("\nRecommendations:")
+            for r in output.recommendations:
+                print(f"  - {r}")
+
+    except Exception as e:
+        print(f"Error in Sensei evaluation: {e}")
+
+
+
+
+def cmd_run_gym(args):
+    """Run full Dojo Gym batch simulations."""
+    if args.config:
+        import json
+        with open(args.config) as f:
+            cfg = json.load(f)
+        app_name = f"projects/{cfg['gcp_project_id']}/locations/{cfg['location']}/apps/{cfg['deployed_app_id']}"
+    else:
+        app_name = get_app_name()
+
+    model = args.model or _DEFAULT_MODEL
+    print(f"Entering Dojo Gym against {app_name}")
+
+    sim = EnhancedSimRunner(app_name=app_name)
+    matrix = sim._load_scenario_matrix(args.doc, model)
+
+    if not matrix or "scenarios" not in matrix:
+        print("Failed to load scenario matrix. Aborting.")
+        return
+
+    print(f"Loaded matrix with {len(matrix['scenarios'])} scenarios.")
+
+    batch_transcripts = []
+
+    for scenario in matrix["scenarios"]:
+        print(f"\n[Gym Match] Running Scenario: {scenario['title']} ({scenario['type']})")
+        print(f"Goal: {scenario['goal']}")
+
+        persona_prompt = f"""Persona: You are a user testing the agent.
+Scenario: {scenario['description']}
+Goal: {scenario['goal']}
+Hidden Agendas: {', '.join(scenario.get('hidden_agendas', []))}
+"""
+
+        print("Starting dynamic conversation...")
+        conv = sim.simulate_dynamic_conversation(
+            persona_prompt=persona_prompt,
+            model=model,
+            console_logging=args.verbose,
+        )
+
+        batch_transcripts.append({
+            "scenario_id": scenario["id"],
+            "transcript": "\n".join(conv)
+        })
+
+    print("\n=== Entering Sensei Vetting Phase ===")
+
+    with open(args.doc, "r") as f:
+        instructions = f.read()
+
+    gym_results = []
+
+    for item in batch_transcripts:
+        scen_id = item["scenario_id"]
+        transcript_str = item["transcript"]
+
+        print(f"\nGrading Scenario {scen_id}...")
+
+        sensei_prompt = f"""You are an advanced AI quality auditor (Sensei) evaluating a conversation between a user (Dojo Agent) and a restaurant host agent.
+Your task is to evaluate whether the host agent followed the rules and protocol specified in the instructions.
+
+Agent Instructions:
+{instructions}
+
+Conversation Transcript:
+{transcript_str}
+
+Evaluate the conversation and provide structured feedback. Identify any rule violations, incorrect tool calls, or poor conversational flow.
+Return the result as a JSON object matching this schema:
+{{
+  "success": true/false, 
+  "score": 0.0-100.0, 
+  "findings": [
+    {{
+      "type": "Rule Violation" / "Ambiguity" / "Good Flow",
+      "description": "Detail of what happened",
+      "justification": "Why this is a finding based on instructions"
+    }}
+  ],
+  "recommendations": ["List of actionable improvements for the agent prompt or instructions"]
+}}
+"""
+        try:
+            class SenseiOutput(pydantic.BaseModel):
+                class Finding(pydantic.BaseModel):
+                    type: str
+                    description: str
+                    justification: str
+                success: bool
+                score: float
+                findings: List[Finding]
+                recommendations: List[str]
+
+            output: SenseiOutput = sim.genai_client.generate(
+                prompt=sensei_prompt,
+                model_name=model,
+                response_mime_type="application/json",
+                response_schema=SenseiOutput,
+            )
+
+            if output:
+                gym_results.append({
+                    "scenario_id": scen_id,
+                    "success": output.success,
+                    "score": output.score,
+                    "findings": [f.model_dump() for f in output.findings],
+                    "recommendations": output.recommendations
+                })
+                print(f"  Score: {output.score}/100.0 | Success: {output.success}")
+
+        except Exception as e:
+            print(f"Error in Sensei evaluation for {scen_id}: {e}")
+
+    # Final Gym Summary
+    print("\n" + "=" * 60)
+    print("FINAL DOJO GYM REPORT")
+    print("=" * 60)
+
+    total_scenarios = len(batch_transcripts)
+    passed_scenarios = sum(1 for r in gym_results if r["success"])
+    avg_score = sum(r["score"] for r in gym_results) / len(gym_results) if gym_results else 0
+
+    print(f"Passed Scenarios: {passed_scenarios}/{total_scenarios}")
+    print(f"Average Compliance Score: {avg_score:.1f}/100.0")
+
+    if passed_scenarios == total_scenarios:
+        print("\n🏆 Congratulations! The agent has earned the Dojo Gym Badge!")
+    else:
+        print("\n❌ The agent failed to pass all challenges in the Dojo Gym.")
+
+    # Save Gym report to file
+    doc_dir = os.path.dirname(args.doc)
+    report_path = os.path.join(doc_dir, "dojo_gym_report.json")
+    import json
+    with open(report_path, "w") as f:
+        json.dump({
+            "total_scenarios": total_scenarios,
+            "passed_scenarios": passed_scenarios,
+            "average_score": avg_score,
+            "results": gym_results
+        }, f, indent=2)
+
+    print(f"\nFull Gym report saved to: {report_path}")
+
+
+
 def main():
+
+
     try:
         import cxas_scrapi  # noqa: F401
     except ImportError:
@@ -877,6 +1208,16 @@ def main():
     p_run.add_argument("--runs", type=int, default=1)
     p_run.add_argument("--parallel", type=int, default=1, help="Number of concurrent sessions (default: 1)")
     p_run.add_argument("--verbose", action="store_true")
+    p_run.add_argument("--config", default=None, help="Path to a specific gecx-config.json file")
+    p_run.add_argument(
+        "--evaluate-expectations-with-audio-tokens",
+        action="store_true",
+        help=(
+            "Enable multimodal agent audio recording and quality validation "
+            "checks"
+        ),
+    )
+
     p_run.add_argument(
         "--gcs-report-path",
         type=str,
@@ -884,8 +1225,12 @@ def main():
         help="GCS URI to upload report to (e.g. gs://bucket/report.html)",
     )
 
+
+
     args = parser.parse_args()
     commands = {"list": cmd_list, "convert": cmd_convert, "run": cmd_run}
+
+
     if args.command in commands:
         commands[args.command](args)
     else:

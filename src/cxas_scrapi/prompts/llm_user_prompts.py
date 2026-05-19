@@ -173,6 +173,8 @@ text, and tool calls) and a list of expectations.
 Your job is to determine if each expectation was met and provide a
 justification.
 
+{audio_instructions}
+
 Trace:
 {trace}
 

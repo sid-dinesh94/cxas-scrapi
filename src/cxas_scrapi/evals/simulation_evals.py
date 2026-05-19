@@ -17,6 +17,7 @@
 import enum
 import json
 import re
+import shutil
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -458,11 +459,34 @@ class SimulationEvals(Apps):
         detailed_trace: list[str],
         model: str,
         console_logging: bool,
+        evaluate_expectations_with_audio_tokens: bool = False,
     ) -> None:
         """Evaluates expectations against the conversation trace.
 
         Modifies `eval_conv.expectation_results` in place.
         """
+        audio_paths = (
+            getattr(eval_conv, "agent_audio_paths", None)
+            if evaluate_expectations_with_audio_tokens
+            else None
+        )
+        audio_expectation = (
+            "All spoken agent audio must accurately match the transcribed text "
+            "without cutoffs, trailing silence, or truncated words."
+        )
+        if (
+            evaluate_expectations_with_audio_tokens
+            and audio_paths
+            and any(audio_paths.values())
+        ):
+            if eval_conv.expectations is None:
+                eval_conv.expectations = []
+            if (
+                isinstance(eval_conv.expectations, list)
+                and audio_expectation not in eval_conv.expectations
+            ):
+                eval_conv.expectations.append(audio_expectation)
+
         if eval_conv.expectations and isinstance(eval_conv.expectations, list):
             if console_logging:
                 print("\nEvaluating Expectations...")
@@ -472,6 +496,7 @@ class SimulationEvals(Apps):
                 model_name=model,
                 trace=detailed_trace,
                 expectations=eval_conv.expectations,
+                audio_paths=audio_paths,
             )
 
     def _send_request_with_retry(
@@ -481,6 +506,8 @@ class SimulationEvals(Apps):
         variables: Dict[str, Any],
         modality: str,
         console_logging: bool,
+        turn_num: Optional[int] = None,
+        evaluate_expectations_with_audio_tokens: bool = False,
     ) -> Any:
         """Sends a request to the CES Agent with exponential backoff for
         transient errors.
@@ -494,6 +521,10 @@ class SimulationEvals(Apps):
                         event=user_utterance.removeprefix("event:").strip(),
                         variables=variables,
                         modality=modality,
+                        turn_num=turn_num,
+                        evaluate_expectations_with_audio_tokens=(
+                            evaluate_expectations_with_audio_tokens
+                        ),
                     )
                 elif user_utterance.startswith("dtmf:"):
                     response = self.sessions_client.run(
@@ -501,6 +532,10 @@ class SimulationEvals(Apps):
                         dtmf=user_utterance.removeprefix("dtmf:").strip(),
                         variables=variables,
                         modality=modality,
+                        turn_num=turn_num,
+                        evaluate_expectations_with_audio_tokens=(
+                            evaluate_expectations_with_audio_tokens
+                        ),
                     )
                 else:
                     response = self.sessions_client.run(
@@ -508,6 +543,10 @@ class SimulationEvals(Apps):
                         text=user_utterance,
                         variables=variables,
                         modality=modality,
+                        turn_num=turn_num,
+                        evaluate_expectations_with_audio_tokens=(
+                            evaluate_expectations_with_audio_tokens
+                        ),
                     )
                 break
             except Exception as e:
@@ -541,6 +580,7 @@ class SimulationEvals(Apps):
         session_id: Optional[str] = None,
         console_logging: bool = True,
         modality: str = "text",
+        evaluate_expectations_with_audio_tokens: bool = False,
     ) -> LLMUserConversation:
         """Runs the simulated conversation loop.
 
@@ -558,6 +598,10 @@ class SimulationEvals(Apps):
             test_case=test_case,
         )
 
+        # Initialize audio paths tracking
+        eval_conv.agent_audio_paths = {}
+        current_sim_turn = 0
+
         if console_logging:
             print(
                 f"Starting simulated conversation with session ID: {session_id}"
@@ -572,53 +616,77 @@ class SimulationEvals(Apps):
         detailed_trace = []
         detailed_trace.append(f"User: {user_utterance}")
 
-        while user_utterance:
-            response = self._send_request_with_retry(
-                session_id,
-                user_utterance,
-                accumulated_variables,
-                modality,
-                console_logging,
-            )
-            if not response:
-                break
+        try:
+            while user_utterance:
+                response = self._send_request_with_retry(
+                    session_id,
+                    user_utterance,
+                    accumulated_variables,
+                    modality,
+                    console_logging,
+                    turn_num=current_sim_turn,
+                    evaluate_expectations_with_audio_tokens=(
+                        evaluate_expectations_with_audio_tokens
+                    ),
+                )
+                if not response:
+                    break
+
+                # Extract and save the agent turn audio WAV if present
+                # in response.
+                if response and getattr(response, "agent_audio_paths", None):
+                    audio_path = response.agent_audio_paths.get(0)
+                    if audio_path:
+                        eval_conv.agent_audio_paths[
+                            current_sim_turn
+                        ] = audio_path
+
+                if console_logging:
+                    self.sessions_client.parse_result(response)
+
+                agent_text, trace_chunks, session_ended = (
+                    self._parse_agent_response(response)
+                )
+                detailed_trace.append("\n".join(trace_chunks))
+
+                if session_ended:
+                    if agent_text:
+                        eval_conv._add_agent_response(agent_text)
+                    if console_logging:
+                        print(
+                            "\nSession has been closed by the Agent via "
+                            "end_session tool."
+                        )
+                    break
+
+                # Get the next simulated user utterance based on the agent's
+                # response
+                user_utterance, variables = eval_conv.next_user_utterance(
+                    agent_text
+                )
+                if variables:
+                    accumulated_variables.update(variables)
+                if user_utterance:
+                    detailed_trace.append(f"User: {user_utterance}")
+
+                current_sim_turn += 1
 
             if console_logging:
-                self.sessions_client.parse_result(response)
+                self._print_completion_status(eval_conv)
 
-            agent_text, trace_chunks, session_ended = (
-                self._parse_agent_response(response)
+            self._evaluate_expectations(
+                eval_conv,
+                detailed_trace,
+                model,
+                console_logging,
+                evaluate_expectations_with_audio_tokens=(
+                    evaluate_expectations_with_audio_tokens
+                ),
             )
-            detailed_trace.append("\n".join(trace_chunks))
-
-            if session_ended:
-                if agent_text:
-                    eval_conv._add_agent_response(agent_text)
-                if console_logging:
-                    print(
-                        "\nSession has been closed by the Agent via "
-                        "end_session tool."
-                    )
-                break
-
-            # Get the next simulated user utterance based on the agent's
-            # response
-            user_utterance, variables = eval_conv.next_user_utterance(
-                agent_text
-            )
-            if variables:
-                accumulated_variables.update(variables)
-            if user_utterance:
-                detailed_trace.append(f"User: {user_utterance}")
-
-        if console_logging:
-            self._print_completion_status(eval_conv)
-
-        self._evaluate_expectations(
-            eval_conv, detailed_trace, model, console_logging
-        )
-        eval_conv.detailed_trace = detailed_trace
-        return eval_conv
+            eval_conv.detailed_trace = detailed_trace
+            return eval_conv
+        finally:
+            shutil.rmtree(f"/tmp/scrapi_evals/{session_id}", ignore_errors=True)
 
     def _prepare_simulation_jobs(
         self, test_cases: List[Dict[str, Any]], runs: int
@@ -639,6 +707,7 @@ class SimulationEvals(Apps):
         modality: str,
         verbose: bool,
         parallel: int,
+        evaluate_expectations_with_audio_tokens: bool = False,
     ) -> Dict[str, Any]:
         """Runs a single simulation job and returns the results."""
         name = tc["name"]
@@ -653,6 +722,9 @@ class SimulationEvals(Apps):
                 session_id=session_id,
                 console_logging=verbose and parallel <= 1,
                 modality=modality,
+                evaluate_expectations_with_audio_tokens=(
+                    evaluate_expectations_with_audio_tokens
+                ),
             )
             duration_s = round(time.time() - _start, 1)
 
@@ -729,6 +801,7 @@ class SimulationEvals(Apps):
         model: str,
         modality: str,
         verbose: bool,
+        evaluate_expectations_with_audio_tokens: bool = False,
     ) -> List[Dict[str, Any]]:
         """Aggregates results from multiple simulation jobs."""
         results = []
@@ -746,6 +819,9 @@ class SimulationEvals(Apps):
                             modality,
                             verbose,
                             parallel,
+                            evaluate_expectations_with_audio_tokens=(
+                                evaluate_expectations_with_audio_tokens
+                            ),
                         )
                     )
                     progress.update(task_id, advance=1)
@@ -762,6 +838,9 @@ class SimulationEvals(Apps):
                             modality,
                             verbose,
                             parallel,
+                            evaluate_expectations_with_audio_tokens=(
+                                evaluate_expectations_with_audio_tokens
+                            ),
                         ): (tc["name"], run_idx)
                         for tc, run_idx in jobs
                     }
@@ -779,6 +858,7 @@ class SimulationEvals(Apps):
         model: str = _DEFAULT_GEMINI_MODEL,
         modality: str = "text",
         verbose: bool = False,
+        evaluate_expectations_with_audio_tokens: bool = False,
     ) -> List[Dict[str, Any]]:
         """Runs multiple simulations, optionally in parallel.
 
@@ -792,7 +872,15 @@ class SimulationEvals(Apps):
         """
         jobs = self._prepare_simulation_jobs(test_cases, runs)
         return self._aggregate_simulation_results(
-            jobs, runs, parallel, model, modality, verbose
+            jobs,
+            runs,
+            parallel,
+            model,
+            modality,
+            verbose,
+            evaluate_expectations_with_audio_tokens=(
+                evaluate_expectations_with_audio_tokens
+            ),
         )
 
     def _add_agent_text(self, turn: Turn, text: str) -> None:

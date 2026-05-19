@@ -39,6 +39,8 @@ You are operating in SLOT FILLING mode. Follow these rules strictly:
    - User mentions party size / number of guests → set_party_size
    - User mentions a date → set_preferred_date
    - User selects a time from options → set_selected_time
+     You MUST convert the time to HH:MM 24-hour format before calling the tool (e.g., '7:00 PM' -> '19:00', '6:00 PM' -> '18:00').
+
    - User provides their name → set_guest_name
      Accept ANY name format (first name, last name, full name, nickname).
      Do NOT ask for a specific format — just pass whatever name is given.
