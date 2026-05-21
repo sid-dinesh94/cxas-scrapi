@@ -41,6 +41,7 @@ class AnalysisType(str, enum.Enum):
     AGENT_HAVING_TROUBLE = "agent_having_trouble"
     AGENT_LOOPING = "agent_looping"
     AGENT_CUTOFF = "agent_cutoff"
+    AGENT_TRANSCRIPT_MISMATCH = "agent_transcript_mismatch"
 
     def __str__(self) -> str:
         return self.value
@@ -62,6 +63,11 @@ class AudioAnalysis(ABC):
     @abstractmethod
     def filter_files(self, files_in_conversation: list[str]) -> list[str]:
         """Picks the subset of conversation audio files this analysis needs."""
+
+    @property
+    def check_instruction(self) -> str | None:
+        """A brief 1-2 sentence instruction for this check to bundle into expectations evaluation."""
+        return None
 
 
 class VoiceConsistencyAnalysis(AudioAnalysis):
@@ -91,6 +97,10 @@ class VoiceConsistencyAnalysis(AudioAnalysis):
     def filter_files(self, files_in_conversation: list[str]) -> list[str]:
         return [f for f in files_in_conversation if "agent-turn" in f]
 
+    @property
+    def check_instruction(self) -> str:
+        return "Voice Consistency: Verify that the agent's voice profile (pitch, timbre, and accent) remains consistent across all turns, sounding like the same speaker."
+
 
 class NoLongPausesAnalysis(AudioAnalysis):
     """Analysis for long pauses."""
@@ -119,6 +129,10 @@ class NoLongPausesAnalysis(AudioAnalysis):
     def filter_files(self, files_in_conversation: list[str]) -> list[str]:
         return [f for f in files_in_conversation if "full-session" in f]
 
+    @property
+    def check_instruction(self) -> str:
+        return "No Long Pauses: Verify there are no silent intervals or pauses longer than 20 seconds in the conversation."
+
 
 class AgentHavingTroubleAnalysis(AudioAnalysis):
     """Analysis for agent having trouble."""
@@ -144,6 +158,10 @@ class AgentHavingTroubleAnalysis(AudioAnalysis):
 
     def filter_files(self, files_in_conversation: list[str]) -> list[str]:
         return [f for f in files_in_conversation if "agent-turn" in f]
+
+    @property
+    def check_instruction(self) -> str:
+        return "Agent Success: Verify that the agent does not state it is having trouble or fail to understand basic inputs."
 
 
 class AgentLoopingAnalysis(AudioAnalysis):
@@ -174,6 +192,10 @@ class AgentLoopingAnalysis(AudioAnalysis):
     def filter_files(self, files_in_conversation: list[str]) -> list[str]:
         return [f for f in files_in_conversation if "agent-turn" in f]
 
+    @property
+    def check_instruction(self) -> str:
+        return "No Looping: Verify the agent does not repeat identical sentences or get stuck in a conversational loop."
+
 
 class AgentCutoffAnalysis(AudioAnalysis):
     """Analysis for agent sentence cutoff."""
@@ -201,6 +223,50 @@ class AgentCutoffAnalysis(AudioAnalysis):
     def filter_files(self, files_in_conversation: list[str]) -> list[str]:
         return [f for f in files_in_conversation if "agent-turn" in f]
 
+    @property
+    def check_instruction(self) -> str:
+        return "No Cut-offs: Verify that no sentences are abruptly cut off or terminated before completion."
+
+
+class TranscriptMismatchAnalysis(AudioAnalysis):
+    """Analysis for checking if the agent's spoken audio matches the transcribed text."""
+
+    @property
+    def name(self) -> AnalysisType:
+        return AnalysisType.AGENT_TRANSCRIPT_MISMATCH
+
+    @property
+    def prompt(self) -> str:
+        return """
+# Setup
+- You are a voice analysis assistant that will analyze conversation audio/wav files and compare them against a transcription.
+- You will be given a METADATA.json containing the transcribed conversation log, and a list of turn audio files (e.g. agent-turn-N.wav).
+
+# Task
+- Read the METADATA.json file to extract the expected transcribed text for each virtual agent turn.
+- Listen carefully to each corresponding audio clip.
+- Determine if the spoken audio matches the expected transcribed text exactly. Verify that there are no trailing silences, cutoffs, or missing/truncated words.
+
+# Output
+- Report PASS if all audio files match their corresponding transcribed text perfectly and provide a justification.
+- Report FAIL if there is any semantic mismatch, discrepancy, or cutoff between the spoken audio and the transcribed text, and provide a justification.
+"""
+
+    def filter_files(self, files_in_conversation: list[str]) -> list[str]:
+        return [
+            f
+            for f in files_in_conversation
+            if "agent-turn" in f or "METADATA.json" in f
+        ]
+
+    @property
+    def check_instruction(self) -> str:
+        return (
+            "Transcript Mismatch: Verify that the agent's spoken audio "
+            "accurately matches the transcribed text without cutoffs, "
+            "truncated words, or semantic discrepancy."
+        )
+
 
 _ALL_ANALYSES: list[AudioAnalysis] = [
     VoiceConsistencyAnalysis(),
@@ -208,6 +274,7 @@ _ALL_ANALYSES: list[AudioAnalysis] = [
     AgentHavingTroubleAnalysis(),
     AgentLoopingAnalysis(),
     AgentCutoffAnalysis(),
+    TranscriptMismatchAnalysis(),
 ]
 
 ANALYSIS_REGISTRY: dict[str, AudioAnalysis] = {

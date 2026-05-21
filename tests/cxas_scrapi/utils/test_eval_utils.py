@@ -15,6 +15,7 @@
 """Tests for evaluation utility functions."""
 
 import sys
+import tempfile
 from unittest.mock import MagicMock, mock_open, patch
 
 # Mock dependencies before importing EvalUtils
@@ -25,7 +26,11 @@ sys.modules["google.cloud.secretmanager"] = MagicMock()
 sys.modules["google.cloud.bigquery"] = MagicMock()
 sys.modules["pandas_gbq"] = MagicMock()
 
-from cxas_scrapi.utils.eval_utils import EvalUtils, Turn  # noqa: E402
+from cxas_scrapi.utils.eval_utils import (  # noqa: E402
+    EvalUtils,
+    Turn,
+    evaluate_expectations,
+)
 
 
 def test_evals_to_dataframe_empty():
@@ -430,3 +435,41 @@ def test_process_conversation_expectations():
         mock_find.assert_any_call(
             llm_prompt="Dict prompt", display_name="My Name"
         )
+
+
+def test_evaluate_expectations_with_audio_guidelines():
+    """Test that evaluate_expectations appends audio guidelines to prompt."""
+    mock_client = MagicMock()
+    mock_client.generate.return_value = MagicMock(results=[])
+
+    with tempfile.NamedTemporaryFile(suffix=".wav") as temp_audio:
+        temp_audio.write(b"dummy audio data")
+        temp_audio.flush()
+
+        audio_paths = {0: temp_audio.name}
+        trace = ["User: hello", "Agent: hi there"]
+        expectations = ["Should greet"]
+
+        evaluate_expectations(
+            gemini_client=mock_client,
+            model_name="gemini-2.5-flash",
+            trace=trace,
+            expectations=expectations,
+            audio_paths=audio_paths,
+        )
+
+        assert mock_client.generate.called
+        kwargs = mock_client.generate.call_args.kwargs
+        prompt = kwargs["prompt"]
+
+        prompt_text = prompt[0]
+        assert (
+            "Additionally, you must evaluate the following "
+            "audio quality criteria:"
+        ) in prompt_text
+        assert "Voice Consistency" in prompt_text
+        assert "No Long Pauses" in prompt_text
+        assert "No Looping" in prompt_text
+        assert "No Cut-offs" in prompt_text
+
+

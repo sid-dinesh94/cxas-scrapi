@@ -35,6 +35,7 @@ from cxas_scrapi.core.tools import Tools
 from cxas_scrapi.core.variables import Variables
 from cxas_scrapi.prompts import llm_user_prompts
 from cxas_scrapi.utils.latency_parser import LatencyParser
+from cxas_scrapi.utils.tracing.audio_analysis import _ALL_ANALYSES
 
 logger = logging.getLogger(__name__)
 
@@ -1418,14 +1419,31 @@ def evaluate_expectations(
         A list of ExpectationResult objects.
     """
     if audio_paths:
-        audio_instr = (
+        audio_instr_lines = [
             "If audio files are provided interleaving the agent turns, you "
             "must listen carefully to each audio track. Verify that the "
             "audio semantics, completion, and phrasing match the "
             "transcribed text. If there is a mismatch, cut-off, "
             "silence, or discrepancy, fail the expectation and "
             "explain the mismatch."
-        )
+        ]
+        try:
+            additional_checks = []
+            for analysis in _ALL_ANALYSES:
+                if getattr(analysis, "check_instruction", None):
+                    additional_checks.append(f"- {analysis.check_instruction}")
+            if additional_checks:
+                audio_instr_lines.append(
+                    "\nAdditionally, you must evaluate the following "
+                    "audio quality criteria:\n"
+                    + "\n".join(additional_checks)
+                )
+        except Exception as e:
+            logger.warning(
+                "Could not load additional audio analysis guidelines: %s", e
+            )
+
+        audio_instr = "\n".join(audio_instr_lines)
         base_prompt = llm_user_prompts.EVALUATE_EXPECTATIONS_PROMPT.replace(
             "{audio_instructions}", audio_instr
         )

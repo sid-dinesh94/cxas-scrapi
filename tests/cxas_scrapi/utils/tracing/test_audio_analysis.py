@@ -23,15 +23,25 @@ SAMPLE_FILES = [
 ]
 
 
-def test_registry_contains_five_named_analyses():
+def test_registry_contains_expected_named_analyses():
     expected = {
         "agent_voice_consistency",
         "no_long_pauses",
         "agent_having_trouble",
         "agent_looping",
         "agent_cutoff",
+        "agent_transcript_mismatch",
     }
     assert set(aa.ANALYSIS_REGISTRY.keys()) == expected
+
+
+def test_transcript_mismatch_filters_to_agent_turns_and_metadata():
+    a = aa.ANALYSIS_REGISTRY["agent_transcript_mismatch"]
+    out = a.filter_files(SAMPLE_FILES)
+    assert any("METADATA.json" in f for f in out)
+    assert any("agent-turn" in f for f in out)
+    assert len(out) == 3
+
 
 
 def test_analysis_type_enum_values_match_registry():
@@ -85,3 +95,12 @@ def test_name_property_returns_enum_member():
     for key, analysis in aa.ANALYSIS_REGISTRY.items():
         assert isinstance(analysis.name, aa.AnalysisType)
         assert str(analysis.name) == key
+
+
+def test_check_instruction_returns_non_empty_string():
+    for _, analysis in aa.ANALYSIS_REGISTRY.items():
+        instr = analysis.check_instruction
+        assert isinstance(instr, str)
+        assert len(instr) > 0
+
+
