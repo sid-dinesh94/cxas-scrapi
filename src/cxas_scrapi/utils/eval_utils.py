@@ -1435,8 +1435,7 @@ def evaluate_expectations(
             if additional_checks:
                 audio_instr_lines.append(
                     "\nAdditionally, you must evaluate the following "
-                    "audio quality criteria:\n"
-                    + "\n".join(additional_checks)
+                    "audio quality criteria:\n" + "\n".join(additional_checks)
                 )
         except Exception as e:
             logger.warning(
@@ -1490,9 +1489,7 @@ def evaluate_expectations(
         prompt = llm_user_prompts.EVALUATE_EXPECTATIONS_PROMPT.replace(
             "{audio_instructions}", ""
         )
-        prompt = prompt.replace(
-            "{trace}", full_trace_str
-        )
+        prompt = prompt.replace("{trace}", full_trace_str)
         prompt = prompt.replace(
             "{expectations}", json.dumps(expectations, indent=2)
         )

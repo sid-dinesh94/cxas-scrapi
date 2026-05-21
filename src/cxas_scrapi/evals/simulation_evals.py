@@ -637,9 +637,9 @@ class SimulationEvals(Apps):
                 if response and getattr(response, "agent_audio_paths", None):
                     audio_path = response.agent_audio_paths.get(0)
                     if audio_path:
-                        eval_conv.agent_audio_paths[
-                            current_sim_turn
-                        ] = audio_path
+                        eval_conv.agent_audio_paths[current_sim_turn] = (
+                            audio_path
+                        )
 
                 if console_logging:
                     self.sessions_client.parse_result(response)

@@ -471,5 +471,3 @@ def test_evaluate_expectations_with_audio_guidelines():
         assert "No Long Pauses" in prompt_text
         assert "No Looping" in prompt_text
         assert "No Cut-offs" in prompt_text
-
-

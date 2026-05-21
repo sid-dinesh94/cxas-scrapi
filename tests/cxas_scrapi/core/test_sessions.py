@@ -728,4 +728,3 @@ def test_bidi_session_handler_audio_writing_disabled(
     mock_makedirs.assert_not_called()
     mock_wave_open.assert_not_called()
     assert handler.turn_audio_paths == {}
-

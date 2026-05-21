@@ -43,7 +43,6 @@ def test_transcript_mismatch_filters_to_agent_turns_and_metadata():
     assert len(out) == 3
 
 
-
 def test_analysis_type_enum_values_match_registry():
     assert {t.value for t in aa.AnalysisType} == set(
         aa.ANALYSIS_REGISTRY.keys()
@@ -102,5 +101,3 @@ def test_check_instruction_returns_non_empty_string():
         instr = analysis.check_instruction
         assert isinstance(instr, str)
         assert len(instr) > 0
-
-
