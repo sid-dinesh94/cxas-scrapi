@@ -43,6 +43,7 @@ from cxas_scrapi.evals.simulation_evals import (
     LLMUserConversation,
     SimulationEvals,
     StepStatus,
+    cleanup_session_dir,
 )
 
 USER_AGENT_EXTENSION = "skill/cxas-agent-foundry/scrapi-sim-runner"
@@ -103,6 +104,7 @@ def build_test_case(ev: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 class EnhancedSimRunner(SimulationEvals):
     """Extended SimulationEvals that injects session variables and captures audio."""
 
+    @cleanup_session_dir
     def simulate_conversation(
         self,
         test_case: Dict[str, Any],
@@ -114,9 +116,6 @@ class EnhancedSimRunner(SimulationEvals):
         evaluate_expectations_with_audio_tokens: bool = False,
     ) -> LLMUserConversation:
         """Run a simulated conversation with variable injection."""
-        if session_id is None:
-            session_id = str(uuid.uuid4())
-
         eval_conv = LLMUserConversation(
             genai_client=self.genai_client,
             genai_model=model,
@@ -141,89 +140,85 @@ class EnhancedSimRunner(SimulationEvals):
         detailed_trace = [f"User: {user_utterance}"]
         accumulated_variables = session_params
 
-        try:
-            while user_utterance:
-                response = self._send_request_with_retry(
-                    session_id=session_id,
-                    user_utterance=user_utterance,
-                    variables=accumulated_variables,
-                    modality=modality,
-                    console_logging=console_logging,
-                    turn_num=current_sim_turn,
-                    evaluate_expectations_with_audio_tokens=(
-                        evaluate_expectations_with_audio_tokens
-                    ),
-                )
-
-                # Turn variables are committed to the session after turn 1
-                accumulated_variables = {}
-
-                if not response:
-                    break
-
-                # Extract and save the agent turn audio WAV if present in response
-                if response and getattr(response, "agent_audio_paths", None):
-                    audio_path = response.agent_audio_paths.get(0)
-                    if audio_path:
-                        eval_conv.agent_audio_paths[current_sim_turn] = audio_path
-
-                if console_logging:
-                    self.sessions_client.parse_result(response)
-
-                agent_text, trace_chunks, session_ended = self._parse_agent_response(response)
-                detailed_trace.append("\n".join(trace_chunks))
-
-                if session_ended:
-                    if console_logging:
-                        print("\nSession ended by agent (end_session).")
-                    # Mark current step as completed if the session ending
-                    # is a valid success (escalation evals)
-                    for prog in eval_conv.steps_progress:
-                        criteria = prog.step.success_criteria.lower()
-                        if prog.status != StepStatus.COMPLETED and (
-                            "escalat" in criteria
-                            or "transfer" in criteria
-                            or "being transferred" in criteria
-                        ):
-                            prog.status = StepStatus.COMPLETED
-                            prog.justification = "Agent ended session via escalation/transfer — matches success criteria."
-                    break
-
-                result = eval_conv.next_user_utterance(agent_text)
-                if isinstance(result, tuple):
-                    user_utterance, _ = result
-                else:
-                    user_utterance = result
-                if user_utterance:
-                    detailed_trace.append(f"User: {user_utterance}")
-
-                current_sim_turn += 1
-
-            if console_logging:
-                print("\n--- Conversation Complete ---")
-                for step_prog in eval_conv.steps_progress:
-                    status_icon = "✓" if step_prog.status == StepStatus.COMPLETED else "✗"
-                    print(f"  {status_icon} {step_prog.step.goal[:80]} → {step_prog.status.value}")
-
-            # Evaluate expectations
-            self._evaluate_expectations(
-                eval_conv,
-                detailed_trace,
-                model,
-                console_logging,
+        while user_utterance:
+            response = self._send_request_with_retry(
+                session_id=session_id,
+                user_utterance=user_utterance,
+                variables=accumulated_variables,
+                modality=modality,
+                console_logging=console_logging,
+                turn_num=current_sim_turn,
                 evaluate_expectations_with_audio_tokens=(
                     evaluate_expectations_with_audio_tokens
                 ),
             )
 
-            # Attach extra data for reporting
-            eval_conv._session_id = session_id
-            eval_conv._detailed_trace = detailed_trace
+            # Turn variables are committed to the session after turn 1
+            accumulated_variables = {}
 
-            return eval_conv
-        finally:
-            import shutil
-            shutil.rmtree(f"/tmp/scrapi_evals/{session_id}", ignore_errors=True)
+            if not response:
+                break
+
+            # Extract and save the agent turn audio WAV if present in response
+            if response and getattr(response, "agent_audio_paths", None):
+                audio_path = response.agent_audio_paths.get(0)
+                if audio_path:
+                    eval_conv.agent_audio_paths[current_sim_turn] = audio_path
+
+            if console_logging:
+                self.sessions_client.parse_result(response)
+
+            agent_text, trace_chunks, session_ended = self._parse_agent_response(response)
+            detailed_trace.append("\n".join(trace_chunks))
+
+            if session_ended:
+                if console_logging:
+                    print("\nSession ended by agent (end_session).")
+                # Mark current step as completed if the session ending
+                # is a valid success (escalation evals)
+                for prog in eval_conv.steps_progress:
+                    criteria = prog.step.success_criteria.lower()
+                    if prog.status != StepStatus.COMPLETED and (
+                        "escalat" in criteria
+                        or "transfer" in criteria
+                        or "being transferred" in criteria
+                    ):
+                        prog.status = StepStatus.COMPLETED
+                        prog.justification = "Agent ended session via escalation/transfer — matches success criteria."
+                break
+
+            result = eval_conv.next_user_utterance(agent_text)
+            if isinstance(result, tuple):
+                user_utterance, _ = result
+            else:
+                user_utterance = result
+            if user_utterance:
+                detailed_trace.append(f"User: {user_utterance}")
+
+            current_sim_turn += 1
+
+        if console_logging:
+            print("\n--- Conversation Complete ---")
+            for step_prog in eval_conv.steps_progress:
+                status_icon = "✓" if step_prog.status == StepStatus.COMPLETED else "✗"
+                print(f"  {status_icon} {step_prog.step.goal[:80]} → {step_prog.status.value}")
+
+        # Evaluate expectations
+        self._evaluate_expectations(
+            eval_conv,
+            detailed_trace,
+            model,
+            console_logging,
+            evaluate_expectations_with_audio_tokens=(
+                evaluate_expectations_with_audio_tokens
+            ),
+        )
+
+        # Attach extra data for reporting
+        eval_conv._session_id = session_id
+        eval_conv._detailed_trace = detailed_trace
+
+        return eval_conv
 
 
 

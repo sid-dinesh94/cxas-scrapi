@@ -15,6 +15,8 @@
 """Eval conversation classes for CXAS Scrapi."""
 
 import enum
+import functools
+import inspect
 import json
 import re
 import shutil
@@ -327,6 +329,28 @@ class LLMUserConversation(Conversation):
         return SimulationReport(goals_df, expectations_df)
 
 
+def cleanup_session_dir(func):
+    """Decorator to ensure session temporary directory is deleted on exit."""
+    sig = inspect.signature(func)
+
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        bound = sig.bind(self, *args, **kwargs)
+        bound.apply_defaults()
+
+        session_id = bound.arguments.get("session_id")
+        if session_id is None:
+            session_id = str(uuid.uuid4())
+            bound.arguments["session_id"] = session_id
+
+        try:
+            return func(*bound.args, **bound.kwargs)
+        finally:
+            shutil.rmtree(f"/tmp/scrapi_evals/{session_id}", ignore_errors=True)
+
+    return wrapper
+
+
 class SimulationEvals(Apps):
     """Wrapper class to simulate entire multi-turn conversations with a
     CXAS Agent."""
@@ -573,6 +597,7 @@ class SimulationEvals(Apps):
             if step_prog.justification:
                 print(f"  Justification: {step_prog.justification}")
 
+    @cleanup_session_dir
     def simulate_conversation(
         self,
         test_case: Dict[str, Any],
@@ -590,8 +615,6 @@ class SimulationEvals(Apps):
             console_logging: Whether to print interaction transcript to
                 the console.
         """
-        if session_id is None:
-            session_id = str(uuid.uuid4())
         eval_conv = LLMUserConversation(
             genai_client=self.genai_client,
             genai_model=model,
@@ -616,80 +639,75 @@ class SimulationEvals(Apps):
         detailed_trace = []
         detailed_trace.append(f"User: {user_utterance}")
 
-        try:
-            while user_utterance:
-                response = self._send_request_with_retry(
-                    session_id,
-                    user_utterance,
-                    accumulated_variables,
-                    modality,
-                    console_logging,
-                    turn_num=current_sim_turn,
-                    evaluate_expectations_with_audio_tokens=(
-                        evaluate_expectations_with_audio_tokens
-                    ),
-                )
-                if not response:
-                    break
-
-                # Extract and save the agent turn audio WAV if present
-                # in response.
-                if response and getattr(response, "agent_audio_paths", None):
-                    audio_path = response.agent_audio_paths.get(0)
-                    if audio_path:
-                        eval_conv.agent_audio_paths[current_sim_turn] = (
-                            audio_path
-                        )
-
-                if console_logging:
-                    self.sessions_client.parse_result(response)
-
-                agent_text, trace_chunks, session_ended = (
-                    self._parse_agent_response(response)
-                )
-                detailed_trace.append("\n".join(trace_chunks))
-
-                if session_ended:
-                    if agent_text:
-                        eval_conv._add_agent_response(agent_text)
-                    if console_logging:
-                        print(
-                            "\nSession has been closed by the Agent via "
-                            "end_session tool."
-                        )
-                    break
-
-                # Get the next simulated user utterance based on the agent's
-                # response
-                user_utterance, variables = eval_conv.next_user_utterance(
-                    agent_text
-                )
-                if variables:
-                    accumulated_variables.update(variables)
-                if user_utterance:
-                    detailed_trace.append(f"User: {user_utterance}")
-
-                current_sim_turn += 1
-
-            if console_logging:
-                self._print_completion_status(eval_conv)
-
-            self._evaluate_expectations(
-                eval_conv,
-                detailed_trace,
-                model,
+        while user_utterance:
+            response = self._send_request_with_retry(
+                session_id,
+                user_utterance,
+                accumulated_variables,
+                modality,
                 console_logging,
+                turn_num=current_sim_turn,
                 evaluate_expectations_with_audio_tokens=(
                     evaluate_expectations_with_audio_tokens
                 ),
             )
-            eval_conv._session_id = session_id
-            eval_conv.session_id = session_id
-            eval_conv._detailed_trace = detailed_trace
-            eval_conv.detailed_trace = detailed_trace
-            return eval_conv
-        finally:
-            shutil.rmtree(f"/tmp/scrapi_evals/{session_id}", ignore_errors=True)
+            if not response:
+                break
+
+            # Extract and save the agent turn audio WAV if present
+            # in response.
+            if response and getattr(response, "agent_audio_paths", None):
+                audio_path = response.agent_audio_paths.get(0)
+                if audio_path:
+                    eval_conv.agent_audio_paths[current_sim_turn] = audio_path
+
+            if console_logging:
+                self.sessions_client.parse_result(response)
+
+            agent_text, trace_chunks, session_ended = (
+                self._parse_agent_response(response)
+            )
+            detailed_trace.append("\n".join(trace_chunks))
+
+            if session_ended:
+                if agent_text:
+                    eval_conv._add_agent_response(agent_text)
+                if console_logging:
+                    print(
+                        "\nSession has been closed by the Agent via "
+                        "end_session tool."
+                    )
+                break
+
+            # Get the next simulated user utterance based on the agent's
+            # response
+            user_utterance, variables = eval_conv.next_user_utterance(
+                agent_text
+            )
+            if variables:
+                accumulated_variables.update(variables)
+            if user_utterance:
+                detailed_trace.append(f"User: {user_utterance}")
+
+            current_sim_turn += 1
+
+        if console_logging:
+            self._print_completion_status(eval_conv)
+
+        self._evaluate_expectations(
+            eval_conv,
+            detailed_trace,
+            model,
+            console_logging,
+            evaluate_expectations_with_audio_tokens=(
+                evaluate_expectations_with_audio_tokens
+            ),
+        )
+        eval_conv._session_id = session_id
+        eval_conv.session_id = session_id
+        eval_conv._detailed_trace = detailed_trace
+        eval_conv.detailed_trace = detailed_trace
+        return eval_conv
 
     def _prepare_simulation_jobs(
         self, test_cases: List[Dict[str, Any]], runs: int
