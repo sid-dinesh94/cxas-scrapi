@@ -133,42 +133,30 @@ class EnhancedSimRunner(SimulationEvals):
             if session_params:
                 print(f"  Variables: {list(session_params.keys())}")
 
-        # First turn: inject variables alongside the initial utterance
+        # First turn: record initial user utterance in the transcript trace
         user_utterance = initial_utterance
         eval_conv._add_user_utterance(user_utterance)
         eval_conv.current_turn += 1
 
         detailed_trace = [f"User: {user_utterance}"]
+        accumulated_variables = session_params
 
-        first_turn = True
         try:
             while user_utterance:
-                for attempt in range(self.max_retries):
-                    try:
-                        kwargs = {
-                            "session_id": session_id,
-                            "text": user_utterance,
-                            "modality": modality,
-                            "turn_num": current_sim_turn,
-                            "evaluate_expectations_with_audio_tokens": (
-                                evaluate_expectations_with_audio_tokens
-                            ),
-                        }
-                        # Inject variables on first turn only
-                        if first_turn and session_params:
-                            kwargs["variables"] = session_params
-                            first_turn = False
-                        else:
-                            first_turn = False
+                response = self._send_request_with_retry(
+                    session_id=session_id,
+                    user_utterance=user_utterance,
+                    variables=accumulated_variables,
+                    modality=modality,
+                    console_logging=console_logging,
+                    turn_num=current_sim_turn,
+                    evaluate_expectations_with_audio_tokens=(
+                        evaluate_expectations_with_audio_tokens
+                    ),
+                )
 
-                        response = self.sessions_client.run(**kwargs)
-                        break
-                    except Exception as e:
-                        if attempt == self.max_retries - 1:
-                            raise e
-                        if console_logging:
-                            print(f"  Retry {attempt+1}: {e}")
-                        time.sleep(self.retry_delay_base ** attempt)
+                # Turn variables are committed to the session after turn 1
+                accumulated_variables = {}
 
                 if not response:
                     break
