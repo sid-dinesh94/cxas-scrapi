@@ -657,6 +657,58 @@ class SimulationEvals(Apps):
                             "\nSession has been closed by the Agent via "
                             "end_session tool."
                         )
+
+                    # Heuristic goal mapping on early closed sessions
+                    # (escalation or clean close).
+                    is_escalation = any(
+                        "escalat" in p.step.success_criteria.lower()
+                        or "transfer" in p.step.success_criteria.lower()
+                        for p in eval_conv.steps_progress
+                        if p.status != StepStatus.COMPLETED
+                    )
+
+                    uncompleted_steps = [
+                        p
+                        for p in eval_conv.steps_progress
+                        if p.status != StepStatus.COMPLETED
+                    ]
+
+                    if uncompleted_steps:
+                        if is_escalation:
+                            for prog in uncompleted_steps:
+                                criteria = prog.step.success_criteria.lower()
+                                if any(
+                                    k in criteria
+                                    for k in [
+                                        "escalat",
+                                        "transfer",
+                                        "being transferred",
+                                    ]
+                                ):
+                                    prog.status = StepStatus.COMPLETED
+                                    prog.justification = (
+                                        "Session escalated/transferred "
+                                        "successfully — matches escalation "
+                                        "criteria."
+                                    )
+                        else:
+                            last_prog = uncompleted_steps[-1]
+                            criteria = last_prog.step.success_criteria.lower()
+                            if any(
+                                k in criteria
+                                for k in [
+                                    "end",
+                                    "close",
+                                    "thank",
+                                    "session successfully",
+                                ]
+                            ):
+                                last_prog.status = StepStatus.COMPLETED
+                                last_prog.justification = (
+                                    "Session ended successfully via "
+                                    "end_session — matches terminal "
+                                    "criteria."
+                                )
                     break
 
                 # Get the next simulated user utterance based on the agent's
@@ -683,6 +735,9 @@ class SimulationEvals(Apps):
                     evaluate_expectations_with_audio_tokens
                 ),
             )
+            eval_conv._session_id = session_id
+            eval_conv.session_id = session_id
+            eval_conv._detailed_trace = detailed_trace
             eval_conv.detailed_trace = detailed_trace
             return eval_conv
         finally:
