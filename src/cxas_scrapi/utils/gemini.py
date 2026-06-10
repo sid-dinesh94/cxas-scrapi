@@ -16,7 +16,7 @@ import asyncio
 import logging
 import random
 import threading
-from typing import Any, List, Optional, Union
+from typing import Any
 
 from google import genai
 
@@ -70,10 +70,10 @@ class GeminiGenerate:
 
     def _build_contents(
         self,
-        prompt: Union[str, List[Any]],
-        audio_path: Optional[str] = None,
-        audio_bytes: Optional[bytes] = None,
-    ) -> List[Any]:
+        prompt: str | list[Any],
+        audio_path: str | None = None,
+        audio_bytes: bytes | None = None,
+    ) -> list[Any]:
         """Helper to construct contents for the model including audio."""
         contents = []
         if isinstance(prompt, list):
@@ -96,18 +96,45 @@ class GeminiGenerate:
                 )
         return contents
 
+    def _build_generation_config(
+        self,
+        system_prompt: str | None = None,
+        response_mime_type: str | None = None,
+        response_schema: Any | None = None,
+        temperature: float | None = 1.0,
+        thinking_level: str | None = None,
+    ) -> genai.types.GenerateContentConfig | None:
+        """Helper to construct GenerateContentConfig for the GenAI SDK."""
+        config_args = {}
+        if system_prompt:
+            config_args["system_instruction"] = system_prompt
+        if response_mime_type:
+            config_args["response_mime_type"] = response_mime_type
+        if response_schema:
+            config_args["response_schema"] = response_schema
+        if temperature is not None:
+            config_args["temperature"] = temperature
+        if thinking_level:
+            config_args["thinking_config"] = genai.types.ThinkingConfig(
+                thinking_level=thinking_level
+            )
+
+        if config_args:
+            return genai.types.GenerateContentConfig(**config_args)
+        return None
+
     def generate(
         self,
-        prompt: Union[str, List[Any]],
-        system_prompt: Optional[str] = None,
-        model_name: Optional[str] = None,
-        response_mime_type: Optional[str] = None,
-        response_schema: Optional[Any] = None,
-        temperature: Optional[float] = 1.0,
-        thinking_level: Optional[str] = None,
-        audio_path: Optional[str] = None,
-        audio_bytes: Optional[bytes] = None,
-    ) -> Optional[Any]:
+        prompt: str | list[Any],
+        system_prompt: str | None = None,
+        model_name: str | None = None,
+        response_mime_type: str | None = None,
+        response_schema: Any | None = None,
+        temperature: float | None = 1.0,
+        thinking_level: str | None = None,
+        audio_path: str | None = None,
+        audio_bytes: bytes | None = None,
+    ) -> Any | None:
         """Generates content using the Gemini model.
 
         Args:
@@ -129,23 +156,13 @@ class GeminiGenerate:
         """
         target_model = model_name or self.model_name
 
-        config_args = {}
-        if system_prompt:
-            config_args["system_instruction"] = system_prompt
-        if response_mime_type:
-            config_args["response_mime_type"] = response_mime_type
-        if response_schema:
-            config_args["response_schema"] = response_schema
-        if temperature is not None:
-            config_args["temperature"] = temperature
-        if thinking_level:
-            config_args["thinking_config"] = genai.types.ThinkingConfig(
-                thinking_level=thinking_level
-            )
-
-        config = None
-        if config_args:
-            config = genai.types.GenerateContentConfig(**config_args)
+        config = self._build_generation_config(
+            system_prompt=system_prompt,
+            response_mime_type=response_mime_type,
+            response_schema=response_schema,
+            temperature=temperature,
+            thinking_level=thinking_level,
+        )
 
         contents = self._build_contents(prompt, audio_path, audio_bytes)
 
@@ -164,13 +181,13 @@ class GeminiGenerate:
     def generate_with_parts(
         self,
         parts: list[Any],
-        system_prompt: Optional[str] = None,
-        model_name: Optional[str] = None,
-        response_mime_type: Optional[str] = None,
-        response_schema: Optional[Any] = None,
-        temperature: Optional[float] = 1.0,
-        thinking_level: Optional[str] = None,
-    ) -> Optional[Any]:
+        system_prompt: str | None = None,
+        model_name: str | None = None,
+        response_mime_type: str | None = None,
+        response_schema: Any | None = None,
+        temperature: float | None = 1.0,
+        thinking_level: str | None = None,
+    ) -> Any | None:
         """Generates content from a list of multimodal Parts.
 
         Useful for audio analysis where one part is a `genai.types.Part`
@@ -198,23 +215,13 @@ class GeminiGenerate:
             else:
                 contents.append(part)
 
-        config_args = {}
-        if system_prompt:
-            config_args["system_instruction"] = system_prompt
-        if response_mime_type:
-            config_args["response_mime_type"] = response_mime_type
-        if response_schema:
-            config_args["response_schema"] = response_schema
-        if temperature is not None:
-            config_args["temperature"] = temperature
-        if thinking_level:
-            config_args["thinking_config"] = genai.types.ThinkingConfig(
-                thinking_level=thinking_level
-            )
-
-        config = None
-        if config_args:
-            config = genai.types.GenerateContentConfig(**config_args)
+        config = self._build_generation_config(
+            system_prompt=system_prompt,
+            response_mime_type=response_mime_type,
+            response_schema=response_schema,
+            temperature=temperature,
+            thinking_level=thinking_level,
+        )
 
         try:
             response = self.client.models.generate_content(
@@ -229,17 +236,17 @@ class GeminiGenerate:
 
     async def generate_async(
         self,
-        prompt: Union[str, List[Any]],
-        system_prompt: Optional[str] = None,
-        model_name: Optional[str] = None,
-        response_mime_type: Optional[str] = None,
-        response_schema: Optional[Any] = None,
+        prompt: str | list[Any],
+        system_prompt: str | None = None,
+        model_name: str | None = None,
+        response_mime_type: str | None = None,
+        response_schema: Any | None = None,
         max_retries: int = 5,
         base_delay_seconds: int = 10,
-        temperature: Optional[float] = 1.0,
-        audio_path: Optional[str] = None,
-        audio_bytes: Optional[bytes] = None,
-    ) -> Optional[Any]:
+        temperature: float | None = 1.0,
+        audio_path: str | None = None,
+        audio_bytes: bytes | None = None,
+    ) -> Any | None:
         """Generates content asynchronously using the Gemini model.
 
         Args:
@@ -261,19 +268,12 @@ class GeminiGenerate:
         """
         target_model = model_name or self.model_name
 
-        config_args = {}
-        if system_prompt:
-            config_args["system_instruction"] = system_prompt
-        if response_mime_type:
-            config_args["response_mime_type"] = response_mime_type
-        if response_schema:
-            config_args["response_schema"] = response_schema
-        if temperature is not None:
-            config_args["temperature"] = temperature
-
-        config = None
-        if config_args:
-            config = genai.types.GenerateContentConfig(**config_args)
+        config = self._build_generation_config(
+            system_prompt=system_prompt,
+            response_mime_type=response_mime_type,
+            response_schema=response_schema,
+            temperature=temperature,
+        )
 
         contents = self._build_contents(prompt, audio_path, audio_bytes)
 
