@@ -400,6 +400,76 @@ def test_user_simulator_audio_with_eval_enabled(
     }
 
 
+@patch("cxas_scrapi.evals.simulation_evals.Sessions")
+@patch("cxas_scrapi.evals.simulation_evals.LLMUserConversation")
+def test_user_simulator_audio_with_transcript_mismatch_only(
+    mock_llm_conv_class, mock_sessions_class
+):
+    mock_sessions = mock_sessions_class.return_value
+    mock_eval_conv = mock_llm_conv_class.return_value
+
+    mock_eval_conv.next_user_utterance.side_effect = [
+        ("event: welcome", {}),
+        ("I want to book a flight", {}),
+        ("", {}),
+    ]
+    mock_eval_conv.steps_progress = []
+    mock_eval_conv.expectations = []
+
+    # Mock Response 1
+    mock_response_1 = MagicMock()
+    mock_output_1 = MagicMock()
+    mock_output_1.text = ""
+    mock_response_1.outputs = [mock_output_1]
+    mock_response_1.agent_audio_paths = {
+        0: "/tmp/scrapi_evals/123/turn_0_agent.wav"
+    }
+
+    # Mock Response 2
+    mock_response_2 = MagicMock()
+    mock_output_2 = MagicMock()
+    mock_output_2.text = "Flight booked."
+    mock_output_2.diagnostic_info = None
+    mock_response_2.outputs = [mock_output_2]
+    mock_response_2.agent_audio_paths = {
+        0: "/tmp/scrapi_evals/123/turn_1_agent.wav"
+    }
+
+    mock_sessions.run.side_effect = [mock_response_1, mock_response_2]
+
+    app_name = "projects/test/locations/us/apps/123-abc"
+    with patch("cxas_scrapi.evals.simulation_evals.GeminiGenerate"):
+        with patch("cxas_scrapi.core.apps.AgentServiceClient"):
+            simulator = SimulationEvals(app_name=app_name)
+
+    test_case = {"steps": []}
+    simulator.simulate_conversation(
+        test_case=test_case,
+        session_id="123",
+        console_logging=False,
+        modality="audio",
+        evaluate_audio_transcript_mismatch_only=True,
+    )
+
+    mock_sessions.run.assert_any_call(
+        session_id="123",
+        event="welcome",
+        variables={},
+        modality="audio",
+        turn_num=0,
+        evaluate_expectations_with_audio_tokens=True,
+        background_noise_file=None,
+        burst_noise_files=None,
+        use_tool_fakes=False,
+    )
+
+    assert mock_sessions.run.call_count == 2
+    assert any(
+        "The audio transcript from STT must accurately match the " in str(exp)
+        for exp in mock_eval_conv.expectations
+    )
+
+
 def test_parse_agent_response_standard():
     mock_response = MagicMock()
     mock_output = MagicMock()
@@ -1232,6 +1302,7 @@ def test_simulation_evals_run_simulations_use_tool_fakes(mock_sessions):
         background_noise_file=None,
         burst_noise_files=None,
         use_tool_fakes=True,
+        evaluate_audio_transcript_mismatch_only=False,
     )
 
 
@@ -1269,4 +1340,5 @@ def test_simulation_evals_run_simulations_use_tool_fakes_parallel(
         background_noise_file=None,
         burst_noise_files=None,
         use_tool_fakes=True,
+        evaluate_audio_transcript_mismatch_only=False,
     )

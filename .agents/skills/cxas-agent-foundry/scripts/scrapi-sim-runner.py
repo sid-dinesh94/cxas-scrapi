@@ -410,6 +410,9 @@ def cmd_run(args):
         evaluate_expectations_with_audio_tokens=getattr(
             args, "evaluate_expectations_with_audio_tokens", False
         ),
+        evaluate_audio_transcript_mismatch_only=getattr(
+            args, "analyze_audio_transcript_mismatch_only", False
+        ),
     )
 
     # Summary
@@ -528,6 +531,12 @@ def main():
         action="store_true",
         default=False,
         help="Enable expectations evaluation with audio tokens",
+    )
+    p_run.add_argument(
+        "--analyze-audio-transcript-mismatch-only",
+        action="store_true",
+        default=False,
+        help="Only analyze if STT audio transcript matches bidiRunSession text exactly",
     )
     p_run.add_argument(
         "--gcs-report-path",

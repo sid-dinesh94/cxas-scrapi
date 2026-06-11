@@ -473,6 +473,39 @@ def test_evaluate_expectations_with_audio_guidelines():
         assert "No Cut-offs" in prompt_text
 
 
+def test_evaluate_expectations_with_transcript_mismatch_only():
+    """Test evaluate_expectations with evaluate_audio_transcript_mismatch_only."""
+    mock_client = MagicMock()
+    mock_client.generate.return_value = MagicMock(results=[])
+
+    with tempfile.NamedTemporaryFile(suffix=".wav") as temp_audio:
+        temp_audio.write(b"dummy audio data")
+        temp_audio.flush()
+
+        audio_paths = {0: temp_audio.name}
+        trace = ["User: hello", "Agent: hi there"]
+        expectations = ["Should greet"]
+
+        evaluate_expectations(
+            gemini_client=mock_client,
+            model_name="gemini-2.5-flash",
+            trace=trace,
+            expectations=expectations,
+            audio_paths=audio_paths,
+            evaluate_audio_transcript_mismatch_only=True,
+        )
+
+        assert mock_client.generate.called
+        kwargs = mock_client.generate.call_args.kwargs
+        prompt = kwargs["prompt"]
+
+        prompt_text = prompt[0]
+        assert "Additionally, you must evaluate the following" not in prompt_text
+        assert "Voice Consistency" not in prompt_text
+        assert "No Long Pauses" not in prompt_text
+        assert "matches the bidiRunSession transcribed text exactly" in prompt_text
+
+
 def test_eval_utils_credentials_propagation():
     """Test that custom credentials and kwargs propagate down to all
     sub-clients.

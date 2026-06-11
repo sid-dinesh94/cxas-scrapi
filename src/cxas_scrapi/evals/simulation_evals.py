@@ -419,32 +419,44 @@ class SimulationEvals(Apps):
         model: str,
         console_logging: bool,
         evaluate_expectations_with_audio_tokens: bool = False,
+        evaluate_audio_transcript_mismatch_only: bool = False,
     ) -> None:
         """Evaluates expectations against the conversation trace.
 
         Modifies `eval_conv.expectation_results` in place.
         """
+        capture_audio = (
+            evaluate_expectations_with_audio_tokens
+            or evaluate_audio_transcript_mismatch_only
+        )
         audio_paths = (
             getattr(eval_conv, "agent_audio_paths", None)
-            if evaluate_expectations_with_audio_tokens
+            if capture_audio
             else None
         )
         audio_expectation = (
             "All spoken agent audio must accurately match the transcribed text "
             "without cutoffs, trailing silence, or truncated words."
         )
-        if (
-            evaluate_expectations_with_audio_tokens
-            and audio_paths
-            and any(audio_paths.values())
-        ):
+        mismatch_expectation = (
+            "The audio transcript from STT must accurately match the "
+            "transcript from the bidiRunSession exactly."
+        )
+
+        if capture_audio and audio_paths and any(audio_paths.values()):
             if eval_conv.expectations is None:
                 eval_conv.expectations = []
-            if (
-                isinstance(eval_conv.expectations, list)
-                and audio_expectation not in eval_conv.expectations
-            ):
-                eval_conv.expectations.append(audio_expectation)
+            if isinstance(eval_conv.expectations, list):
+                if (
+                    evaluate_audio_transcript_mismatch_only
+                    and mismatch_expectation not in eval_conv.expectations
+                ):
+                    eval_conv.expectations.append(mismatch_expectation)
+                elif (
+                    evaluate_expectations_with_audio_tokens
+                    and audio_expectation not in eval_conv.expectations
+                ):
+                    eval_conv.expectations.append(audio_expectation)
 
         if eval_conv.expectations and isinstance(eval_conv.expectations, list):
             if console_logging:
@@ -456,6 +468,9 @@ class SimulationEvals(Apps):
                 trace=detailed_trace,
                 expectations=eval_conv.expectations,
                 audio_paths=audio_paths,
+                evaluate_audio_transcript_mismatch_only=(
+                    evaluate_audio_transcript_mismatch_only
+                ),
             )
 
     def _send_request_with_retry(
@@ -556,6 +571,7 @@ class SimulationEvals(Apps):
         background_noise_file: str | None = None,
         burst_noise_files: list[str] | None = None,
         use_tool_fakes: bool = False,
+        evaluate_audio_transcript_mismatch_only: bool = False,
     ) -> LLMUserConversation:
         """Runs the simulated conversation loop.
 
@@ -574,6 +590,10 @@ class SimulationEvals(Apps):
         # Initialize audio paths tracking
         eval_conv.agent_audio_paths = {}
         current_sim_turn = 0
+        capture_audio = (
+            evaluate_expectations_with_audio_tokens
+            or evaluate_audio_transcript_mismatch_only
+        )
 
         if console_logging:
             print(
@@ -597,9 +617,7 @@ class SimulationEvals(Apps):
                 modality,
                 console_logging,
                 turn_num=current_sim_turn,
-                evaluate_expectations_with_audio_tokens=(
-                    evaluate_expectations_with_audio_tokens
-                ),
+                evaluate_expectations_with_audio_tokens=capture_audio,
                 background_noise_file=background_noise_file,
                 burst_noise_files=burst_noise_files,
                 use_tool_fakes=use_tool_fakes,
@@ -658,6 +676,9 @@ class SimulationEvals(Apps):
             evaluate_expectations_with_audio_tokens=(
                 evaluate_expectations_with_audio_tokens
             ),
+            evaluate_audio_transcript_mismatch_only=(
+                evaluate_audio_transcript_mismatch_only
+            ),
         )
         eval_conv._session_id = session_id
         eval_conv.session_id = session_id
@@ -688,6 +709,7 @@ class SimulationEvals(Apps):
         background_noise_file: str | None = None,
         burst_noise_files: list[str] | None = None,
         use_tool_fakes: bool = False,
+        evaluate_audio_transcript_mismatch_only: bool = False,
     ) -> dict[str, Any]:
         """Runs a single simulation job and returns the results."""
         name = tc["name"]
@@ -708,6 +730,9 @@ class SimulationEvals(Apps):
                 background_noise_file=background_noise_file,
                 burst_noise_files=burst_noise_files,
                 use_tool_fakes=use_tool_fakes,
+                evaluate_audio_transcript_mismatch_only=(
+                    evaluate_audio_transcript_mismatch_only
+                ),
             )
             duration_s = round(time.time() - _start, 1)
 
@@ -792,6 +817,7 @@ class SimulationEvals(Apps):
         background_noise_file: str | None = None,
         burst_noise_files: list[str] | None = None,
         use_tool_fakes: bool = False,
+        evaluate_audio_transcript_mismatch_only: bool = False,
     ) -> list[dict[str, Any]]:
         """Aggregates results from multiple simulation jobs."""
         results = []
@@ -815,6 +841,9 @@ class SimulationEvals(Apps):
                             background_noise_file=background_noise_file,
                             burst_noise_files=burst_noise_files,
                             use_tool_fakes=use_tool_fakes,
+                            evaluate_audio_transcript_mismatch_only=(
+                                evaluate_audio_transcript_mismatch_only
+                            ),
                         )
                     )
                     progress.update(task_id, advance=1)
@@ -837,6 +866,9 @@ class SimulationEvals(Apps):
                             background_noise_file=background_noise_file,
                             burst_noise_files=burst_noise_files,
                             use_tool_fakes=use_tool_fakes,
+                            evaluate_audio_transcript_mismatch_only=(
+                                evaluate_audio_transcript_mismatch_only
+                            ),
                         ): (tc["name"], run_idx)
                         for tc, run_idx in jobs
                     }
@@ -858,6 +890,7 @@ class SimulationEvals(Apps):
         background_noise_file: str | None = None,
         burst_noise_files: list[str] | None = None,
         use_tool_fakes: bool = False,
+        evaluate_audio_transcript_mismatch_only: bool = False,
     ) -> list[dict[str, Any]]:
         """Runs multiple simulations, optionally in parallel.
 
@@ -869,6 +902,8 @@ class SimulationEvals(Apps):
             modality: 'text' or 'audio'.
             verbose: Whether to log to console (only active if parallel=1).
             use_tool_fakes: Use fake tools for the session if available.
+            evaluate_audio_transcript_mismatch_only: If True, only evaluate if
+              STT transcript matches bidiRunSession transcribed text.
         """
         jobs = self._prepare_simulation_jobs(test_cases, runs)
         return self._aggregate_simulation_results(
@@ -884,6 +919,9 @@ class SimulationEvals(Apps):
             background_noise_file=background_noise_file,
             burst_noise_files=burst_noise_files,
             use_tool_fakes=use_tool_fakes,
+            evaluate_audio_transcript_mismatch_only=(
+                evaluate_audio_transcript_mismatch_only
+            ),
         )
 
     def _add_agent_text(self, turn: Turn, text: str) -> None:

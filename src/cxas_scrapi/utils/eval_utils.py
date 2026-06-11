@@ -1408,6 +1408,7 @@ def evaluate_expectations(
     trace: list[str],
     expectations: list[str],
     audio_paths: dict[int, str] | None = None,
+    evaluate_audio_transcript_mismatch_only: bool = False,
 ) -> list[ExpectationResult]:
     """Evaluates expectations against the conversation trace using an LLM.
 
@@ -1418,35 +1419,45 @@ def evaluate_expectations(
         expectations: A list of strings representing the expectations.
         audio_paths: Optional dictionary mapping simulation turn numbers to
           audio WAV file paths.
+        evaluate_audio_transcript_mismatch_only: If True, only evaluate if STT
+          transcript matches bidiRunSession transcribed text.
 
     Returns:
         A list of ExpectationResult objects.
     """
     if audio_paths:
-        audio_instr_lines = [
-            "If audio files are provided interleaving the agent turns, you "
-            "must listen carefully to each audio track. Verify that the "
-            "audio semantics, completion, and phrasing match the "
-            "transcribed text. If there is a mismatch, cut-off, "
-            "silence, or discrepancy, fail the expectation and "
-            "explain the mismatch."
-        ]
-        try:
-            additional_checks = []
-            for analysis in _ALL_ANALYSES:
-                if getattr(analysis, "check_instruction", None):
-                    additional_checks.append(f"- {analysis.check_instruction}")
-            if additional_checks:
-                audio_instr_lines.append(
-                    "\nAdditionally, you must evaluate the following "
-                    "audio quality criteria:\n" + "\n".join(additional_checks)
-                )
-        except Exception as e:
-            logger.warning(
-                "Could not load additional audio analysis guidelines: %s", e
+        if evaluate_audio_transcript_mismatch_only:
+            audio_instr = (
+                "You must listen carefully to each audio track and verify "
+                "that the spoken audio transcript matches the bidiRunSession "
+                "transcribed text exactly. Explain any phrasing discrepancy or "
+                "missing words."
             )
+        else:
+            audio_instr_lines = [
+                "If audio files are provided interleaving the agent turns, you "
+                "must listen carefully to each audio track. Verify that the "
+                "audio semantics, completion, and phrasing match the "
+                "transcribed text. If there is a mismatch, cut-off, "
+                "silence, or discrepancy, fail the expectation and "
+                "explain the mismatch."
+            ]
+            try:
+                additional_checks = []
+                for analysis in _ALL_ANALYSES:
+                    if getattr(analysis, "check_instruction", None):
+                        additional_checks.append(f"- {analysis.check_instruction}")
+                if additional_checks:
+                    audio_instr_lines.append(
+                        "\nAdditionally, you must evaluate the following "
+                        "audio quality criteria:\n" + "\n".join(additional_checks)
+                    )
+            except Exception as e:
+                logger.warning(
+                    "Could not load additional audio analysis guidelines: %s", e
+                )
 
-        audio_instr = "\n".join(audio_instr_lines)
+            audio_instr = "\n".join(audio_instr_lines)
         base_prompt = llm_user_prompts.EVALUATE_EXPECTATIONS_PROMPT.replace(
             "{audio_instructions}", audio_instr
         )
