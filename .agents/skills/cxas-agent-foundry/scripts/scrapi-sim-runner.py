@@ -114,6 +114,7 @@ class EnhancedSimRunner(SimulationEvals):
         use_tool_fakes: bool = False,
         background_noise_file: str | None = None,
         evaluate_expectations_with_audio_tokens: bool = False,
+        evaluate_audio_transcript_mismatch_only: bool = False,
         **kwargs: Any,
     ) -> LLMUserConversation:
         """Run a simulated conversation with variable injection."""
@@ -127,6 +128,10 @@ class EnhancedSimRunner(SimulationEvals):
         )
         eval_conv.agent_audio_paths = {}
         current_sim_turn = 0
+        capture_audio = (
+            evaluate_expectations_with_audio_tokens
+            or evaluate_audio_transcript_mismatch_only
+        )
 
         session_params = test_case.get("session_parameters", {})
 
@@ -151,9 +156,7 @@ class EnhancedSimRunner(SimulationEvals):
                         "text": user_utterance,
                         "modality": modality,
                         "use_tool_fakes": use_tool_fakes,
-                        "evaluate_expectations_with_audio_tokens": (
-                            evaluate_expectations_with_audio_tokens
-                        ),
+                        "evaluate_expectations_with_audio_tokens": capture_audio,
                         "background_noise_file": background_noise_file,
                         "turn_num": current_sim_turn,
                     }
@@ -233,6 +236,9 @@ class EnhancedSimRunner(SimulationEvals):
             console_logging,
             evaluate_expectations_with_audio_tokens=(
                 evaluate_expectations_with_audio_tokens
+            ),
+            evaluate_audio_transcript_mismatch_only=(
+                evaluate_audio_transcript_mismatch_only
             ),
         )
 
