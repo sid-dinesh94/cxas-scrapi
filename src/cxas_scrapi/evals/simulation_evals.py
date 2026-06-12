@@ -439,8 +439,16 @@ class SimulationEvals(Apps):
             "without cutoffs, trailing silence, or truncated words."
         )
         mismatch_expectation = (
-            "The audio transcript from STT must accurately match the "
-            "transcript from the bidiRunSession exactly."
+            "The spoken audio transcript for the AGENT turns must accurately "
+            "match the transcript from the bidiRunSession for the AGENT turns "
+            "SEMANTICALLY. You must ignore minor telephony variations, exact "
+            "capitalization differences, and interchangeable conversational "
+            "fillers (like 'OK' vs 'okay'). However, you MUST flag and explain "
+            "any material divergence in clinical meaning, incorrect "
+            "precertification status, or severe state mismatches (such as "
+            "asking for Date of Birth instead of presenting a wrap-up menu). "
+            "(CRITICAL: You must ONLY evaluate the agent's output turns; "
+            "ignore user input/transcription completely)."
         )
 
         if capture_audio and audio_paths and any(audio_paths.values()):

@@ -1429,9 +1429,14 @@ def evaluate_expectations(
         if evaluate_audio_transcript_mismatch_only:
             audio_instr = (
                 "You must listen carefully to each audio track and verify "
-                "that the spoken audio transcript matches the bidiRunSession "
-                "transcribed text exactly. Explain any phrasing discrepancy or "
-                "missing words."
+                "that the spoken audio transcript for the AGENT turns matches "
+                "the bidiRunSession transcribed text for the AGENT turns "
+                "SEMANTICALLY. Ignore exact phrasing differences, punctuation, "
+                "capitalization, and minor fillers (like 'OK' vs 'okay'). "
+                "Flag only substantial clinical discrepancies or severe state "
+                "mismatches (e.g., asking for Date of Birth when the text "
+                "shows a wrap-up menu). (CRITICAL: ONLY evaluate agent output "
+                "turns; completely ignore user input/transcription)."
             )
         else:
             audio_instr_lines = [
@@ -1446,11 +1451,14 @@ def evaluate_expectations(
                 additional_checks = []
                 for analysis in _ALL_ANALYSES:
                     if getattr(analysis, "check_instruction", None):
-                        additional_checks.append(f"- {analysis.check_instruction}")
+                        additional_checks.append(
+                            f"- {analysis.check_instruction}"
+                        )
                 if additional_checks:
+                    quality_crit = "\n".join(additional_checks)
                     audio_instr_lines.append(
                         "\nAdditionally, you must evaluate the following "
-                        "audio quality criteria:\n" + "\n".join(additional_checks)
+                        f"audio quality criteria:\n{quality_crit}"
                     )
             except Exception as e:
                 logger.warning(
