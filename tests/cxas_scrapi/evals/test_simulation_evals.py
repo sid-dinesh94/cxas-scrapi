@@ -465,7 +465,8 @@ def test_user_simulator_audio_with_transcript_mismatch_only(
 
     assert mock_sessions.run.call_count == 2
     assert any(
-        "The audio transcript from STT must accurately match the " in str(exp)
+        "The spoken audio transcript for the AGENT turns must accurately "
+        in str(exp)
         for exp in mock_eval_conv.expectations
     )
 

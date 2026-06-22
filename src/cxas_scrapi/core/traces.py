@@ -518,10 +518,15 @@ class Traces(Common):
             override = overrides.get(str(analysis.name))
             if override is not None:
                 prompt = override.prompt
-            parts = [
-                genai.types.Part.from_uri(file_uri=f, mime_type=mime_type)
-                for f in analysis_files
-            ]
+            parts = []
+            for f in analysis_files:
+                if f.endswith(".json") or f.endswith(".txt"):
+                    m = "text/plain"
+                elif f.endswith(".wav"):
+                    m = mime_type
+                else:
+                    m = "text/plain"
+                parts.append(genai.types.Part.from_uri(file_uri=f, mime_type=m))
             parts.append(prompt)
             response = gem.generate_with_parts(
                 parts=parts,

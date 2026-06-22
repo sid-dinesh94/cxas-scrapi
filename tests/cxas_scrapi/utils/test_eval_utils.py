@@ -474,7 +474,7 @@ def test_evaluate_expectations_with_audio_guidelines():
 
 
 def test_evaluate_expectations_with_transcript_mismatch_only():
-    """Test evaluate_expectations with evaluate_audio_transcript_mismatch_only."""
+    """Test evaluate_expectations with transcript mismatch only."""
     mock_client = MagicMock()
     mock_client.generate.return_value = MagicMock(results=[])
 
@@ -500,10 +500,15 @@ def test_evaluate_expectations_with_transcript_mismatch_only():
         prompt = kwargs["prompt"]
 
         prompt_text = prompt[0]
-        assert "Additionally, you must evaluate the following" not in prompt_text
+        assert (
+            "Additionally, you must evaluate the following" not in prompt_text
+        )
         assert "Voice Consistency" not in prompt_text
         assert "No Long Pauses" not in prompt_text
-        assert "matches the bidiRunSession transcribed text exactly" in prompt_text
+        assert (
+            "matches the bidiRunSession transcribed text for the AGENT turns"
+            in prompt_text
+        )
 
 
 def test_eval_utils_credentials_propagation():

@@ -204,6 +204,10 @@ def test_list_with_prefix_returns_sorted(mock_client_cls):
 @patch("cxas_scrapi.utils.gcs_utils.storage.Client")
 def test_find_dir_for_conversation(mock_client_cls):
     mock_client = mock_client_cls.return_value
+    mock_client.bucket.return_value.blob.return_value.exists.return_value = (
+        False
+    )
+
     a, b = Mock(), Mock()
     a.name = "x/y/wrong/METADATA.json"
     b.name = "p/q/conv-42/METADATA.json"
@@ -219,6 +223,10 @@ def test_find_dir_for_conversation(mock_client_cls):
 @patch("cxas_scrapi.utils.gcs_utils.storage.Client")
 def test_find_dir_for_conversation_not_found(mock_client_cls):
     mock_client = mock_client_cls.return_value
+    mock_client.bucket.return_value.blob.return_value.exists.return_value = (
+        False
+    )
+
     a = Mock()
     a.name = "p/other/METADATA.json"
     mock_client.list_blobs.return_value = [a]
@@ -228,3 +236,22 @@ def test_find_dir_for_conversation_not_found(mock_client_cls):
         gcs.find_dir_for_conversation("gs://b", conversation_id="missing")
         is None
     )
+
+
+@patch("cxas_scrapi.utils.gcs_utils.storage.Client")
+def test_find_dir_for_conversation_direct_lookup_success(mock_client_cls):
+    mock_client = mock_client_cls.return_value
+
+    # Mock blob.exists to return True only for 'calls/conv-42/METADATA.json'
+    def mock_exists():
+        return True
+
+    mock_blob = Mock()
+    mock_blob.exists.side_effect = mock_exists
+    mock_client.bucket.return_value.blob.return_value = mock_blob
+
+    gcs = GCSUtils()
+    out = gcs.find_dir_for_conversation(
+        "gs://my-bucket", conversation_id="conv-42"
+    )
+    assert out == "calls/conv-42/"

@@ -239,17 +239,41 @@ class TranscriptMismatchAnalysis(AudioAnalysis):
     def prompt(self) -> str:
         return """
 # Setup
-- You are a voice analysis assistant that will analyze conversation audio/wav files and compare them against a transcription.
-- You will be given a METADATA.json containing the transcribed conversation log, and a list of turn audio files (e.g. agent-turn-N.wav).
+- You are a voice analysis assistant that will analyze conversation audio/wav
+  files and compare them against a transcription.
+- You will be given a METADATA.json containing the transcribed conversation
+  log, and a list of turn audio files (e.g. agent-turn-N.wav).
 
 # Task
-- Read the METADATA.json file to extract the expected transcribed text for each virtual agent turn.
+- Read the METADATA.json file to extract the expected transcribed text for
+  each virtual agent turn.
 - Listen carefully to each corresponding audio clip.
-- Determine if the spoken audio matches the expected transcribed text exactly. Verify that there are no trailing silences, cutoffs, or missing/truncated words.
+- Compare them using the following instruction:
+  "The spoken audio in the turn must semantically match the text transcript.
+  Ignore minor differences in wording, formatting (e.g., '1 8 0' vs 'one
+  eight zero'), filler words, or contractions, as long as the core meaning,
+  intent, and instructions are identical. Ignore the omission or addition
+  of polite fillers, greetings, or sentences that explain why information is
+  being requested (e.g., 'I need that so I can help you', 'to get started'),
+  as long as the core request or instruction itself is present and correct.
+  Flag as FAILED only if there is a semantic contradiction (e.g., 'required'
+  vs 'not required'), a change in key information (like dates, identifiers,
+  or service names), or if critical information is added or omitted in the
+  audio that changes the meaning."
 
-# Output
-- Report PASS if all audio files match their corresponding transcribed text perfectly and provide a justification.
-- Report FAIL if there is any semantic mismatch, discrepancy, or cutoff between the spoken audio and the transcribed text, and provide a justification.
+# Output Format
+- If the comparison passes (all audio files match their corresponding
+  transcribed text perfectly according to the rules), output:
+  PASS
+  <justification>
+- If the comparison fails, output:
+  FAIL
+  If the audit FAILS, the justification MUST be formatted as a numbered list
+  of issues. Each issue must reference the Turn number where it occurred and
+  describe the mismatch clearly.
+  Example:
+  1. Turn 3: Audio omitted 'please retry'.
+  2. Turn 5: Audio said '123' but text transcript shows '456'.
 """
 
     def filter_files(self, files_in_conversation: list[str]) -> list[str]:

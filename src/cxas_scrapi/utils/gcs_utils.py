@@ -17,6 +17,7 @@
 import os
 from typing import Any
 
+from google.api_core.exceptions import GoogleAPIError
 from google.cloud import storage
 
 from cxas_scrapi.core.common import Common
@@ -171,6 +172,25 @@ class GCSUtils(Common):
         (everything up to and including `{conversation_id}/`) or None.
         """
         bucket_name, _ = self._parse_gcs_uri(gcs_bucket_uri, require_path=False)
+        bucket = self.client.bucket(bucket_name)
+
+        # Optimization: Try direct prefix guesses first to avoid listing large
+        # buckets.
+        guesses = [
+            f"calls/{conversation_id}/",
+            f"recordings/{conversation_id}/",
+            f"{conversation_id}/",
+        ]
+        for prefix in guesses:
+            marker_path = f"{prefix}{marker_filename}"
+            blob = bucket.blob(marker_path)
+            try:
+                if blob.exists():
+                    return prefix
+            except GoogleAPIError:
+                pass
+
+        # Fallback to listing blobs if direct lookups fail
         suffix = f"/{conversation_id}/{marker_filename}"
         for blob in self.client.list_blobs(
             bucket_name, max_results=max_results
