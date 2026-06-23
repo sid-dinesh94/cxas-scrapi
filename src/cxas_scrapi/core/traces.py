@@ -32,6 +32,7 @@ import difflib
 import json
 import logging
 import os
+import re
 import subprocess
 import tempfile
 import urllib.parse
@@ -563,22 +564,54 @@ class Traces(Common):
             if override is not None:
                 prompt = override.prompt
             parts = []
-            for f in analysis_files:
-                if f.endswith(".json") or f.endswith(".txt"):
-                    parts.append(
-                        genai.types.Part.from_uri(
-                            file_uri=f, mime_type="text/plain"
-                        )
+            if str(analysis.name) == "agent_transcript_mismatch":
+                try:
+                    normalized = normalized or self.get_normalized(
+                        conversation_id
                     )
-                elif f.endswith(".wav"):
-                    parts.append(self._get_linear16_part(f))
-                else:
-                    parts.append(
-                        genai.types.Part.from_uri(
-                            file_uri=f, mime_type="text/plain"
-                        )
+                except Exception as e:
+                    logger.warning(
+                        f"Could not load normalized conversation: {e}"
                     )
-            parts.append(prompt)
+                    normalized = {}
+                wav_files = [f for f in analysis_files if f.endswith(".wav")]
+
+                def _get_turn_number(filename: str) -> int:
+                    match = re.search(r"agent-turn-(\d+)\.wav", filename)
+                    return int(match.group(1)) if match else 0
+
+                wav_files.sort(key=_get_turn_number)
+
+                by_turn = {}
+                for e in normalized.get("entries", []):
+                    if e.get("kind") == "agent":
+                        by_turn.setdefault(e.get("turn"), []).append(
+                            e.get("text", "")
+                        )
+                sorted_turns = sorted(by_turn.keys())
+
+                parts.append(
+                    "You are auditing the spoken audio clips against their "
+                    "expected transcripts turn by turn.\n"
+                )
+
+                for idx, f in enumerate(wav_files):
+                    if idx < len(sorted_turns):
+                        turn_idx = sorted_turns[idx]
+                        expected_text = " ".join(by_turn[turn_idx])
+                        parts.append(f"\n--- Turn {turn_idx} ---\n")
+                        parts.append(
+                            f'Expected Agent Text: "{expected_text}"\n'
+                        )
+                        parts.append("Spoken Agent Audio: ")
+                        parts.append(self._get_linear16_part(f))
+                        parts.append("\n")
+                parts.append(prompt)
+            else:
+                for f in analysis_files:
+                    if f.endswith(".wav"):
+                        parts.append(self._get_linear16_part(f))
+                parts.append(prompt)
             response = gem.generate_with_parts(
                 parts=parts,
                 thinking_level=self.trace_config.gemini.thinking_level,
