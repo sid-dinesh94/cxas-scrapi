@@ -118,6 +118,13 @@ class EnhancedSimRunner(SimulationEvals):
         **kwargs: Any,
     ) -> LLMUserConversation:
         """Run a simulated conversation with variable injection."""
+        session_params = test_case.get("session_parameters", {})
+        if initial_utterance == "Hi" and (
+            session_params.get("api_lang") == "French"
+            or session_params.get("locale", "").startswith("fr")
+        ):
+            initial_utterance = "Bonjour"
+
         if session_id is None:
             session_id = str(uuid.uuid4())
 

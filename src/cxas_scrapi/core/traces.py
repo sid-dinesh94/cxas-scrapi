@@ -33,6 +33,7 @@ import json
 import logging
 import os
 import subprocess
+import tempfile
 import urllib.parse
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -456,6 +457,50 @@ class Traces(Common):
             return []
         return gcs.list_with_prefix(bucket, prefix=prefix)
 
+    def _get_linear16_part(self, gcs_uri: str) -> genai.types.Part:
+        """Downloads a WAV file from GCS, transcodes it to Linear16 PCM via
+        ffmpeg, and returns a Part.from_bytes. If transcoding fails, returns
+        the original Part.from_uri fallback.
+        """
+        gcs = GCSUtils(creds=self.creds)
+
+        with tempfile.TemporaryDirectory(prefix="cxas-transcode-") as tmpdir:
+            src_path = os.path.join(tmpdir, "input.wav")
+            try:
+                gcs.download_to_file(gcs_uri, src_path)
+                dest_path = os.path.join(tmpdir, "output.wav")
+                cmd = [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    src_path,
+                    "-acodec",
+                    "pcm_s16le",
+                    "-ar",
+                    "16000",
+                    "-ac",
+                    "1",
+                    dest_path,
+                ]
+                subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    check=True,
+                )
+                with open(dest_path, "rb") as f:
+                    data = f.read()
+                return genai.types.Part.from_bytes(
+                    data=data, mime_type="audio/wav"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"FFmpeg transcoding failed for {gcs_uri}: {e}. "
+                    "Falling back to from_uri."
+                )
+                return genai.types.Part.from_uri(
+                    file_uri=gcs_uri, mime_type="audio/wav"
+                )
+
     # ----------------------------- analysis ---------------------------------
 
     def analyze_audio(
@@ -500,7 +545,6 @@ class Traces(Common):
             model_name=self.trace_config.gemini.model,
         )
         overrides = self.trace_config.gemini.audio_metrics
-        mime_type = self.trace_config.audio.mime_type
 
         results: dict[str, Any] = {}
         for analysis in selected:
@@ -521,12 +565,19 @@ class Traces(Common):
             parts = []
             for f in analysis_files:
                 if f.endswith(".json") or f.endswith(".txt"):
-                    m = "text/plain"
+                    parts.append(
+                        genai.types.Part.from_uri(
+                            file_uri=f, mime_type="text/plain"
+                        )
+                    )
                 elif f.endswith(".wav"):
-                    m = mime_type
+                    parts.append(self._get_linear16_part(f))
                 else:
-                    m = "text/plain"
-                parts.append(genai.types.Part.from_uri(file_uri=f, mime_type=m))
+                    parts.append(
+                        genai.types.Part.from_uri(
+                            file_uri=f, mime_type="text/plain"
+                        )
+                    )
             parts.append(prompt)
             response = gem.generate_with_parts(
                 parts=parts,
