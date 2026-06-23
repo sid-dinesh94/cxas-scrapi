@@ -238,16 +238,14 @@ class TranscriptMismatchAnalysis(AudioAnalysis):
     @property
     def prompt(self) -> str:
         return """
-# Setup
-- You are a voice analysis assistant that will analyze conversation audio/wav
-  files and compare them against a transcription.
-- You will be given a METADATA.json containing the transcribed conversation
-  log, and a list of turn audio files (e.g. agent-turn-N.wav).
-
 # Task
-- Read the METADATA.json file to extract the expected transcribed text for
-  each virtual agent turn.
-- Listen carefully to each corresponding audio clip.
+- You are a voice analysis assistant.
+- You have been given a structured list of conversation turns. For each turn,
+  you are provided with:
+  1. The "Expected Agent Text" (the transcription).
+  2. The "Spoken Agent Audio" (the audio clip).
+- Listen carefully to each spoken audio clip and compare it to its
+  corresponding expected agent text.
 - Compare them using the following instruction:
   "The spoken audio in the turn must semantically match the text transcript.
   Ignore minor differences in wording, formatting (e.g., '1 8 0' vs 'one

@@ -35,6 +35,7 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 import urllib.parse
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -590,36 +591,115 @@ class Traces(Common):
                         )
                 sorted_turns = sorted(by_turn.keys())
 
-                parts.append(
-                    "You are auditing the spoken audio clips against their "
-                    "expected transcripts turn by turn.\n"
-                )
+                turn_results = []
 
-                for idx, f in enumerate(wav_files):
-                    if idx < len(sorted_turns):
-                        turn_idx = sorted_turns[idx]
-                        expected_text = " ".join(by_turn[turn_idx])
-                        parts.append(f"\n--- Turn {turn_idx} ---\n")
-                        parts.append(
-                            f'Expected Agent Text: "{expected_text}"\n'
+                def audit_single_turn(
+                    idx: int,
+                    f: str,
+                    sorted_turns=sorted_turns,
+                    by_turn=by_turn,
+                    prompt=prompt,
+                ) -> tuple[int, str]:
+                    if idx >= len(sorted_turns):
+                        return idx, "PASS"
+                    turn_idx = sorted_turns[idx]
+                    expected_text = " ".join(by_turn[turn_idx])
+
+                    turn_parts = [
+                        "Below is a comparison for a single conversation turn. "
+                        "Compare the Expected Agent Text with the Spoken "
+                        "Agent Audio clip.\n",
+                        f"--- Turn {turn_idx} ---\n",
+                        f'Expected Agent Text: "{expected_text}"\n',
+                        "Spoken Agent Audio: ",
+                        self._get_linear16_part(f),
+                        "\n",
+                        prompt,
+                    ]
+
+
+                    max_retries = 3
+                    delay = 2.0
+                    for attempt in range(max_retries):
+                        try:
+                            # Stagger requests slightly to prevent a simultaneous burst
+                            time.sleep(idx * 0.1)
+                            response = gem.generate_with_parts(
+                                parts=turn_parts,
+                                thinking_level=self.trace_config.gemini.thinking_level,
+                            )
+                            if response is None:
+                                raise ValueError(
+                                    "Gemini returned empty response"
+                                )
+                            return turn_idx, response.strip()
+                        except Exception as err:
+                            if attempt == max_retries - 1:
+                                logger.warning(
+                                    f"Failed to audit Turn {turn_idx} after "
+                                    f"{max_retries} attempts: {err}"
+                                )
+                                return turn_idx, f"ERROR: {err}"
+                            logger.info(
+                                f"Retrying Turn {turn_idx} (attempt "
+                                f"{attempt + 1}) due to: {err}"
+                            )
+                            time.sleep(delay * (2**attempt))
+
+                with ThreadPoolExecutor(max_workers=3) as executor:
+                    futures = {
+                        executor.submit(audit_single_turn, idx, f): idx
+                        for idx, f in enumerate(wav_files)
+                    }
+                    for future in as_completed(futures):
+                        _, res = future.result()
+                        if "FAIL" in res:
+                            lines = [
+                                line
+                                for line in res.split("\n")
+                                if line.strip() and not line.startswith("FAIL")
+                            ]
+                            turn_results.extend(lines)
+
+                if turn_results:
+                    turn_results.sort(
+                        key=lambda x: (
+                            int(re.search(r"Turn (\d+)", x).group(1))
+                            if re.search(r"Turn (\d+)", x)
+                            else 0
                         )
-                        parts.append("Spoken Agent Audio: ")
-                        parts.append(self._get_linear16_part(f))
-                        parts.append("\n")
-                parts.append(prompt)
+                    )
+                    justification = "FAIL\n" + "\n".join(
+                        f"{i + 1}. {line.lstrip('1234567890. ')}"
+                        for i, line in enumerate(turn_results)
+                    )
+                    results[str(analysis.name)] = {
+                        "result": "FAIL",
+                        "justification": justification,
+                        "files_analyzed": analysis_files,
+                    }
+                else:
+                    results[str(analysis.name)] = {
+                        "result": "PASS",
+                        "justification": (
+                            "PASS\nAll agent turns match their expected "
+                            "transcripts perfectly."
+                        ),
+                        "files_analyzed": analysis_files,
+                    }
             else:
                 for f in analysis_files:
                     if f.endswith(".wav"):
                         parts.append(self._get_linear16_part(f))
                 parts.append(prompt)
-            response = gem.generate_with_parts(
-                parts=parts,
-                thinking_level=self.trace_config.gemini.thinking_level,
-            )
-            results[str(analysis.name)] = {
-                **_parse_pass_fail(response),
-                "files_analyzed": analysis_files,
-            }
+                response = gem.generate_with_parts(
+                    parts=parts,
+                    thinking_level=self.trace_config.gemini.thinking_level,
+                )
+                results[str(analysis.name)] = {
+                    **_parse_pass_fail(response),
+                    "files_analyzed": analysis_files,
+                }
         return results
 
     def triage(
